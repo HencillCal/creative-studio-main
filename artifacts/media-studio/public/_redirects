@@ -1,0 +1,8 @@
+# Proxy all /api/* calls to your deployed API server.
+# Replace YOUR_API_URL with the actual URL of your deployed API
+# (e.g. https://creative-studio-api.yourname.repl.co or a Railway/Render URL).
+# Keep the ":splat" placeholder — it captures everything after /api/.
+/api/* YOUR_API_URL/api/:splat 200
+
+# SPA fallback — all other routes serve index.html so React Router works
+/* /index.html 200

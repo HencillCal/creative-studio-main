@@ -1,0 +1,103 @@
+modules = ["nodejs-24", "python-3.11", "postgresql-16"]
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=8080 pnpm --filter @workspace/api-server run dev & PORT=5000 pnpm --filter @workspace/media-studio run dev & sleep 6 && node scripts/dev-port-proxy.mjs"
+waitForPort = 5000
+
+[agent]
+stack = "BEST_EFFORT_FALLBACK"
+expertMode = true
+integrations = ["github:1.0.0"]
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
+
+[[ports]]
+localPort = 3000
+externalPort = 4200
+
+[[ports]]
+localPort = 3001
+externalPort = 5000
+
+[[ports]]
+localPort = 3002
+externalPort = 5173
+
+[[ports]]
+localPort = 3003
+externalPort = 6000
+
+[[ports]]
+localPort = 5000
+externalPort = 8081
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 80
+
+[[ports]]
+localPort = 8082
+externalPort = 3003
+
+[[ports]]
+localPort = 8083
+externalPort = 6800
+
+[[ports]]
+localPort = 9999
+externalPort = 8008
+
+[[ports]]
+localPort = 24893
+externalPort = 3000
+
+[[ports]]
+localPort = 24894
+externalPort = 3002
+
+[[ports]]
+localPort = 24895
+externalPort = 3001
+
+[userenv]
+
+[userenv.shared]
+GEMINI_API_KEY = "AIzaSyAL_88JkN0b_-iA3qHTrhxl53ZAVY78kJ0,AIzaSyDgGVQYvtxIcxN5RUM6bnv2rgSHoF8-ac8"
+
+[nix]
+channel = "stable-25_05"
+packages = ["ffmpeg-full", "libsndfile"]

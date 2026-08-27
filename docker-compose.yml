@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      # ── Required ─────────────────────────────────────────────────────────────
+      # Comma-separated Gemini keys (get free keys at https://aistudio.google.com/app/apikey)
+      GEMINI_API_KEYS: "${GEMINI_API_KEYS}"
+      # Auto-wired to the postgres service below
+      DATABASE_URL: "postgresql://cs_user:${DB_PASSWORD:-changeme}@db:5432/creativestudio"
+      # ── Optional AI/OCR providers ────────────────────────────────────────────
+      AIML_API_KEYS: "${AIML_API_KEYS:-}"
+      OPENAI_API_KEYS: "${OPENAI_API_KEYS:-}"
+      GOOGLE_VISION_API_KEYS: "${GOOGLE_VISION_API_KEYS:-}"
+      OCR_SPACE_API_KEYS: "${OCR_SPACE_API_KEYS:-}"
+      # ── Optional operator alerts (Slack/Discord webhook) ─────────────────────
+      OPS_ALERT_WEBHOOK_URL: "${OPS_ALERT_WEBHOOK_URL:-}"
+    volumes:
+      # Persists the song download cache and temp video files across restarts
+      - cache:/tmp
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: creativestudio
+      POSTGRES_USER: cs_user
+      POSTGRES_PASSWORD: "${DB_PASSWORD:-changeme}"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cs_user -d creativestudio"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  cache:
+  pgdata:

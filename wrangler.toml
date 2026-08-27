@@ -1,0 +1,6 @@
+name = "creative-studio"
+pages_build_output_dir = "artifacts/media-studio/dist/public"
+compatibility_date = "2025-01-01"
+
+[build]
+command = "pnpm install && pnpm --filter @workspace/media-studio run build"

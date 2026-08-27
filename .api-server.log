@@ -1,0 +1,86 @@
+
+> @workspace/api-server@0.0.0 start C:\Users\Jinwiil Onginjo\Desktop\creative-studio-main\artifacts\api-server
+> node --enable-source-maps ./dist/index.mjs
+
+[01:52:50.862] [32mINFO[39m (2816): [36mServer listening[39m
+    [35mport[39m: 8080
+[01:52:50.884] [32mINFO[39m (2816): [36myt-dlp auto-upgrade scheduler started[39m
+    [35mintervalDays[39m: 7
+    [35mstaleAlertDays[39m: 14
+    [35malertsConfigured[39m: false
+[01:52:56.580] [33mWARN[39m (2816): [36myt-dlp binary not found; YouTube full-song downloads will fail until installed.[39m
+[01:52:56.581] [33mWARN[39m (2816): [36mOPS_ALERT_WEBHOOK_URL not set; operator alert dropped[39m
+    [35mkey[39m: "yt-dlp-missing"
+    [35mmessage[39m: "yt-dlp binary not found on api-server; YouTube full-song downloads are disabled."
+[01:53:16.256] [32mINFO[39m (2816): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 1,
+      "method": "GET",
+      "url": "/api/health"
+    }
+    [35mres[39m: {
+      "statusCode": 404
+    }
+    [35mresponseTime[39m: 28
+[01:53:50.896] [32mINFO[39m (2816): [36mStarting scheduled yt-dlp auto-upgrade[39m
+    [35mscript[39m: "C:\Users\Jinwiil Onginjo\Desktop\creative-studio-main\scripts\update-ytdlp.sh"
+[01:54:38.611] [31mERROR[39m (2816): [36myt-dlp auto-upgrade exited non-zero[39m
+    [35mcode[39m: 1
+    [35mstdout[39m: ""
+    [35mstderr[39m: "<3>WSL (10 - Relay) ERROR: CreateProcessCommon:818: execvpe(/bin/bash) failed: No such file or directory"
+[01:54:38.612] [33mWARN[39m (2816): [36mOPS_ALERT_WEBHOOK_URL not set; operator alert dropped[39m
+    [35mkey[39m: "yt-dlp-auto-upgrade-failed"
+    [35mmessage[39m: "yt-dlp auto-upgrade failed"
+[01:59:56.525] [32mINFO[39m (2816): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 2,
+      "method": "GET",
+      "url": "/api/healthz"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 24
+[02:00:00.994] [32mINFO[39m (2816): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 3,
+      "method": "GET",
+      "url": "/api/healthz"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 3
+[11:18:28.885] [32mINFO[39m (2816): [36mrequest errored[39m
+    [35mreq[39m: {
+      "id": 4,
+      "method": "POST",
+      "url": "/api/media/stylize-video"
+    }
+    [35mres[39m: {
+      "statusCode": 500
+    }
+    [35mresponseTime[39m: 851
+    err: {
+      "type": "Error",
+      "message": "failed with status code 500",
+      "stack":
+          Error: failed with status code 500
+              at onResFinished (C:\Users\Jinwiil Onginjo\Desktop\creative-studio-main\node_modules\.pnpm\pino-http@10.5.0\node_modules\pino-http\logger.js:115:39)
+              at ServerResponse.onResponseComplete (C:\Users\Jinwiil Onginjo\Desktop\creative-studio-main\node_modules\.pnpm\pino-http@10.5.0\node_modules\pino-http\logger.js:178:14)
+              at ServerResponse.emit (node:events:520:22)
+              at onFinish (node:_http_outgoing:1026:10)
+              at callback (node:internal/streams/writable:764:21)
+              at afterWrite (node:internal/streams/writable:708:5)
+              at afterWriteTick (node:internal/streams/writable:694:10)
+              at process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+    }
+[01:52:51.055] [32mINFO[39m (2816): [36mStarting scheduled yt-dlp auto-upgrade[39m
+    [35mscript[39m: "C:\Users\Jinwiil Onginjo\Desktop\creative-studio-main\scripts\update-ytdlp.sh"
+[01:53:02.669] [31mERROR[39m (2816): [36myt-dlp auto-upgrade exited non-zero[39m
+    [35mcode[39m: 1
+    [35mstdout[39m: ""
+    [35mstderr[39m: "<3>WSL (10 - Relay) ERROR: CreateProcessCommon:818: execvpe(/bin/bash) failed: No such file or directory"
+[01:53:02.670] [33mWARN[39m (2816): [36mOPS_ALERT_WEBHOOK_URL not set; operator alert dropped[39m
+    [35mkey[39m: "yt-dlp-auto-upgrade-failed"
+    [35mmessage[39m: "yt-dlp auto-upgrade failed"

@@ -1,0 +1,493 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: media
+    description: Media processing operations
+  - name: content
+    description: Content curation operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /healthz/lyrics-cache:
+    get:
+      operationId: getLyricsCacheStatus
+      tags: [health]
+      summary: Lyrics cache health
+      description: Returns row count, configured cap, fill ratio, and recent sweep history for the persistent lyrics cache.
+      responses:
+        "200":
+          description: Lyrics cache status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LyricsCacheStatus"
+        "500":
+          description: Error fetching status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /upload:
+    post:
+      operationId: uploadFile
+      tags: [media]
+      summary: Upload a media file for processing
+      description: Accepts video, image, or audio uploads. Returns a temporary fileId for use with processing endpoints. Files are automatically cleaned up after 30 minutes.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The media file to upload (video/image/audio)
+              required: [file]
+      responses:
+        "200":
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /media/gif-convert:
+    post:
+      operationId: convertToGif
+      tags: [media]
+      summary: Convert video to GIF
+      description: Converts a video segment to an optimized GIF
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                startTime:
+                  type: number
+                  description: Start time in seconds
+                endTime:
+                  type: number
+                  description: End time in seconds
+                fps:
+                  type: integer
+                  description: Frames per second (default 10)
+              required: [file]
+      responses:
+        "200":
+          description: GIF conversion result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaJobResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /media/resize:
+    post:
+      operationId: resizeMedia
+      tags: [media]
+      summary: Resize image or video to target aspect ratio
+      description: Resizes media to platform-specific dimensions with crop or pad mode
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                platform:
+                  type: string
+                  enum: [youtube, tiktok, instagram, twitter, facebook]
+                mode:
+                  type: string
+                  enum: [crop, pad]
+                  description: "crop: crop to fill, pad: fit with padding"
+              required: [file, platform, mode]
+      responses:
+        "200":
+          description: Resize result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaJobResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /media/ocr:
+    post:
+      operationId: extractText
+      tags: [media]
+      summary: Extract text from image using OCR
+      description: Processes an image and returns extracted text
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        "200":
+          description: OCR extraction result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OcrResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /media/download/{fileId}:
+    get:
+      operationId: downloadFile
+      tags: [media]
+      summary: Download processed file
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /content/reddit:
+    get:
+      operationId: getRedditFeed
+      tags: [content]
+      summary: Get trending Reddit posts
+      description: Fetches posts from Reddit news and job subreddits
+      parameters:
+        - name: subreddit
+          in: query
+          required: false
+          schema:
+            type: string
+            default: news
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 25
+      responses:
+        "200":
+          description: Reddit posts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedditFeedResult"
+        "500":
+          description: Error fetching from Reddit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /content/pinterest:
+    get:
+      operationId: getPinterestFeed
+      tags: [content]
+      summary: Get Pinterest trending pins
+      description: Fetches pins from Pinterest (requires API key)
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+            default: trending
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Pinterest pins
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PinterestFeedResult"
+        "401":
+          description: Pinterest API key not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    UploadResult:
+      type: object
+      properties:
+        fileId:
+          type: string
+          description: Temporary file ID for use with processing endpoints
+        filename:
+          type: string
+          description: Original filename
+        size:
+          type: integer
+          description: File size in bytes
+        mimeType:
+          type: string
+          description: MIME type of the uploaded file
+      required: [fileId, filename, size, mimeType]
+
+    MediaJobResult:
+      type: object
+      properties:
+        fileId:
+          type: string
+          description: ID to use for downloading the processed file
+        filename:
+          type: string
+          description: Original filename suggestion for download
+        size:
+          type: integer
+          description: File size in bytes
+        mimeType:
+          type: string
+      required: [fileId, filename, mimeType]
+
+    OcrResult:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Extracted text content
+        confidence:
+          type: number
+          description: Confidence score 0-100
+      required: [text, confidence]
+
+    RedditPost:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        url:
+          type: string
+        permalink:
+          type: string
+        thumbnail:
+          type: string
+        score:
+          type: integer
+        numComments:
+          type: integer
+        subreddit:
+          type: string
+        author:
+          type: string
+        createdUtc:
+          type: number
+        selftext:
+          type: string
+        isVideo:
+          type: boolean
+      required: [id, title, url, permalink, score, numComments, subreddit, author, createdUtc]
+
+    RedditFeedResult:
+      type: object
+      properties:
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/RedditPost"
+        subreddit:
+          type: string
+      required: [posts, subreddit]
+
+    PinterestPin:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        imageUrl:
+          type: string
+        link:
+          type: string
+        boardName:
+          type: string
+        saveCount:
+          type: integer
+      required: [id, title, imageUrl]
+
+    PinterestFeedResult:
+      type: object
+      properties:
+        pins:
+          type: array
+          items:
+            $ref: "#/components/schemas/PinterestPin"
+        query:
+          type: string
+      required: [pins, query]
+
+    LyricsCacheSweepEvent:
+      type: object
+      properties:
+        ts:
+          type: integer
+          description: Unix epoch ms when the sweep started
+        reason:
+          type: string
+          enum: [interval, startup, write_sample]
+        ttlEvicted:
+          type: integer
+          description: Rows deleted because their TTL expired
+        capEvicted:
+          type: integer
+          description: Rows deleted to enforce the row-count cap
+        rowCount:
+          type: integer
+          nullable: true
+          description: Row count immediately after the sweep (null when not measured)
+        fillRatio:
+          type: number
+          nullable: true
+          description: rowCount / max immediately after the sweep
+        durationMs:
+          type: integer
+          nullable: true
+          description: How long the sweep took in milliseconds
+      required: [ts, reason, ttlEvicted, capEvicted, rowCount, fillRatio, durationMs]
+
+    LyricsCacheStatus:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Whether the persistent cache is configured (DATABASE_URL set)
+        rowCount:
+          type: integer
+          nullable: true
+          description: Live row count of the lyrics_cache table
+        max:
+          type: integer
+          description: Configured row-count cap
+        fillRatio:
+          type: number
+          nullable: true
+          description: rowCount / max, rounded to 3 decimals
+        sweepIntervalMs:
+          type: integer
+          description: How often the sweeper runs
+        lastSweep:
+          oneOf:
+            - $ref: "#/components/schemas/LyricsCacheSweepEvent"
+            - type: "null"
+          description: Most recent sweep event, or null if none have completed yet
+        nextSweepEta:
+          type: integer
+          nullable: true
+          description: Unix epoch ms when the next interval sweep is expected
+        recent:
+          type: object
+          properties:
+            sweeps:
+              type: integer
+              description: Number of sweeps in the buffered history
+            ttlEvicted:
+              type: integer
+              description: Total TTL-based evictions across the buffered history
+            capEvicted:
+              type: integer
+              description: Total cap-based evictions across the buffered history
+            history:
+              type: array
+              items:
+                $ref: "#/components/schemas/LyricsCacheSweepEvent"
+          required: [sweeps, ttlEvicted, capEvicted, history]
+      required: [enabled, rowCount, max, fillRatio, sweepIntervalMs, lastSweep, nextSweepEta, recent]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]

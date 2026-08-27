@@ -1,0 +1,59 @@
+services:
+  - type: web
+    name: creative-studio
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: oregon
+    plan: starter
+    # Render injects PORT automatically — the app reads process.env.PORT
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # ── Gemini AI (required for lyrics sync + auto-timing) ─────────────────
+      # Get free keys at: https://aistudio.google.com/app/apikey
+      - key: GEMINI_API_KEYS
+        sync: false
+
+      # ── PostgreSQL (song cache, history) ──────────────────────────────────
+      # Automatically wired when you attach the database defined below
+      - key: DATABASE_URL
+        fromDatabase:
+          name: creative-studio-db
+          property: connectionString
+
+      # ── Optional AI/OCR providers ─────────────────────────────────────────
+      - key: AIML_API_KEYS
+        sync: false
+      - key: OPENAI_API_KEYS
+        sync: false
+      - key: GOOGLE_VISION_API_KEYS
+        sync: false
+      - key: OCR_SPACE_API_KEYS
+        sync: false
+
+      # ── Optional AWS Textract ─────────────────────────────────────────────
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        value: us-east-1
+
+      # ── Optional operator alerts (Slack/Discord webhook) ──────────────────
+      - key: OPS_ALERT_WEBHOOK_URL
+        sync: false
+
+    # Persistent disk keeps the song download cache across deploys.
+    # Without this every deploy wipes cached songs, forcing re-downloads.
+    disk:
+      name: cache
+      mountPath: /tmp
+      sizeGB: 2
+
+    autoDeploy: true
+
+databases:
+  - name: creative-studio-db
+    plan: free
+    region: oregon
