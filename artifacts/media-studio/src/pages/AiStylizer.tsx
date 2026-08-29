@@ -4,7 +4,7 @@ import {
   Image, Palette, Clapperboard, Camera, Cloud, CircleDot, Sunrise, Snowflake, Zap, Pencil, Blend, Sparkles, Shapes,
   Monitor, Gamepad2, Paintbrush, Droplets, Grid3x3, Moon, SunMedium, Film, Glasses, Scroll, Aperture, Frame, Chrome,
   Haze, Sparkle, Sun, Flower2, SunDim, Heart, Cherry, Contrast, Diamond, Play, Pause, ArrowLeftRight, FlipHorizontal,
-  Star, Flame, Waves, Leaf, Stars, CloudFog, Layers, Activity, Radio, Wind,
+  Star, Flame, Waves, Leaf, Stars, CloudFog, Layers, Activity, Radio, Wind, Volume2, VolumeX,
   Flower, CloudMoon, GlassWater, CloudSnow, Crown, Feather, Gem,
   type LucideIcon
 } from "lucide-react";
@@ -20,6 +20,29 @@ import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 
 type StyleMode = "css" | "pixel";
+type VideoFramingMode = "original" | "fit" | "fill";
+type VideoQualityTier = "social" | "high" | "original";
+type VideoCodec = "h264" | "hevc";
+
+type VideoEffect =
+  | "split-teal"
+  | "split-gold"
+  | "split-amber"
+  | "split-moss"
+  | "split-haze"
+  | "liquid-glass"
+  | "wet-shine"
+  | "mirror-water"
+  | "bloom-bokeh"
+  | "god-rays"
+  | "spring-petals"
+  | "chromatic-dream"
+  | "crystal-refraction"
+  | "aqua-prism"
+  | "glass-shimmer"
+  | "caustic-water"
+  | "water-ripple"
+  | "aurora-flux";
 
 interface StyleDef {
   id: string;
@@ -28,6 +51,7 @@ interface StyleDef {
   desc: string;
   mode: StyleMode;
   filter?: string;
+  videoEffect?: VideoEffect;
   category?: "general" | "beauty";
 }
 
@@ -69,7 +93,29 @@ const STYLES: StyleDef[] = [
   { id: "overcast",   label: "Overcast",      icon: CloudFog,     desc: "Grey flat atmosphere",          mode: "css", filter: "contrast(0.82) brightness(1.08) saturate(0.4)" },
   { id: "drama",      label: "Drama",         icon: Activity,     desc: "High contrast punch",           mode: "css", filter: "contrast(1.5) brightness(0.82) saturate(1.25)" },
   { id: "retrowave",  label: "Retrowave",     icon: Radio,        desc: "Synthwave purple haze",         mode: "css", filter: "saturate(1.6) contrast(1.2) hue-rotate(-55deg) brightness(0.88)" },
-  { id: "fog",        label: "Fog",           icon: Wind,         desc: "Soft misty atmosphere",         mode: "css", filter: "brightness(1.25) contrast(0.68) saturate(0.5)" },
+    { id: "fog",           label: "Fog",           icon: Wind,         desc: "Soft misty atmosphere",         mode: "css", filter: "brightness(1.25) contrast(0.68) saturate(0.5)" },
+
+  // Reference-video grades: split-tone looks from video 1.
+  { id: "tealnights",     label: "Teal Nights",   icon: Moon,          desc: "Deep teal shadows, cyan highlights", mode: "css", filter: "brightness(1.07) contrast(1.25) saturate(1.2) sepia(0.1) hue-rotate(-10deg)", videoEffect: "split-teal" },
+  { id: "goldtransit",    label: "Gold Transit",  icon: Sunrise,       desc: "Rainy platform gold and blue",       mode: "css", filter: "brightness(1.04) contrast(1.14) saturate(1.1) sepia(0.16) hue-rotate(-8deg)", videoEffect: "split-gold" },
+  { id: "amberroast",     label: "Amber Roast",   icon: Flame,         desc: "Warm café glass and amber light",    mode: "css", filter: "brightness(0.98) contrast(1.08) saturate(0.9) sepia(0.28)", videoEffect: "split-amber" },
+  { id: "mossforest",     label: "Moss Forest",   icon: Leaf,           desc: "Misty green shadows, soft highlights", mode: "css", filter: "brightness(1.01) contrast(1.1) saturate(0.92) hue-rotate(4deg)", videoEffect: "split-moss" },
+  { id: "coolhaze",       label: "Cool Haze",     icon: CloudFog,       desc: "Pastel blue-hour atmosphere",        mode: "css", filter: "brightness(1.08) contrast(0.94) saturate(0.78) hue-rotate(-8deg)", videoEffect: "split-haze" },
+
+  // Layered looks inspired by the watery/glassy reference videos.
+  { id: "liquidglass",    label: "Liquid Glass",  icon: GlassWater,     desc: "Refracted glass with animated ripples", mode: "css", filter: "brightness(1.05) contrast(1.12) saturate(1.18)", videoEffect: "liquid-glass" },
+  { id: "wetshine",       label: "Wet Shine",     icon: Diamond,        desc: "Glossy highlights and moving sheen",   mode: "css", filter: "brightness(1.08) contrast(1.16) saturate(1.28)", videoEffect: "wet-shine" },
+  { id: "mirrorwater",    label: "Mirror Water",  icon: Waves,          desc: "Cool reflective water finish",        mode: "css", filter: "brightness(1.04) contrast(1.14) saturate(1.12) hue-rotate(10deg)", videoEffect: "mirror-water" },
+  { id: "waterripple",    label: "Water Ripple",  icon: Waves,          desc: "Animated concentric water ripples",    mode: "css", filter: "brightness(1.05) contrast(1.08) saturate(1.22) hue-rotate(8deg)", videoEffect: "water-ripple" },
+  { id: "bloombokeh",     label: "Bloom Bokeh",   icon: Sparkles,        desc: "Dreamy light bloom and bokeh glow",    mode: "css", filter: "brightness(1.12) contrast(1.03) saturate(1.18) blur(0.15px)", videoEffect: "bloom-bokeh" },
+  { id: "godrays",        label: "God Rays",      icon: SunMedium,       desc: "Golden volumetric light streaks",      mode: "css", filter: "brightness(1.1) contrast(1.12) saturate(1.22) sepia(0.1)", videoEffect: "god-rays" },
+  { id: "springpetals",   label: "Spring Petals", icon: Flower2,        desc: "Warm bloom with drifting petal light", mode: "css", filter: "brightness(1.09) contrast(1.08) saturate(1.35) sepia(0.08)", videoEffect: "spring-petals" },
+  { id: "chromaticdream", label: "Chromatic Dream", icon: Sparkle,     desc: "Iridescent glow with color fringing",   mode: "css", filter: "brightness(1.08) contrast(1.12) saturate(1.45) hue-rotate(-12deg)", videoEffect: "chromatic-dream" },
+  { id: "crystalrefraction", label: "Crystal Refraction", icon: Gem, desc: "Prismatic glass with refracted highlights", mode: "css", filter: "brightness(1.06) contrast(1.18) saturate(1.3) hue-rotate(8deg)", videoEffect: "crystal-refraction" },
+  { id: "aquaprism", label: "Aqua Prism", icon: Waves, desc: "Turquoise water with shifting prism color", mode: "css", filter: "brightness(1.08) contrast(1.12) saturate(1.5) hue-rotate(18deg)", videoEffect: "aqua-prism" },
+  { id: "glassshimmer", label: "Glass Shimmer", icon: Diamond, desc: "Polished glass with a moving gleam", mode: "css", filter: "brightness(1.1) contrast(1.15) saturate(1.2)", videoEffect: "glass-shimmer" },
+  { id: "causticwater", label: "Caustic Water", icon: Droplets, desc: "Sunlit underwater caustics and soft bloom", mode: "css", filter: "brightness(1.1) contrast(1.08) saturate(1.3) hue-rotate(12deg)", videoEffect: "caustic-water" },
+  { id: "auroraflux", label: "Aurora Flux", icon: Stars, desc: "Animated cyan-violet aurora ribbons", mode: "css", filter: "brightness(1.08) contrast(1.12) saturate(1.42) hue-rotate(-18deg)", videoEffect: "aurora-flux" },
 ];
 
 const BEAUTY_STYLES: StyleDef[] = [
@@ -92,6 +138,18 @@ const BEAUTY_STYLES: StyleDef[] = [
 ];
 
 const ALL_STYLES = [...STYLES, ...BEAUTY_STYLES];
+const VIDEO_STYLES = STYLES.filter(s => s.mode !== "pixel");
+const VIDEO_BEAUTY_STYLES = BEAUTY_STYLES.filter(s => s.mode !== "pixel");
+
+const GLASS_WATER_STYLE_IDS = new Set(["liquidglass", "wetshine", "mirrorwater", "waterripple", "crystalrefraction", "aquaprism", "glassshimmer", "causticwater", "auroraflux"]);
+
+const STYLE_GROUPS: { label: string; ids: string[] }[] = [
+  { label: "Core Looks", ids: ["original", "vivid", "cinematic", "vintage", "fade", "noir", "warm", "cool"] },
+  { label: "Color & Film", ids: ["moody", "sunset", "tealnorange", "cyberpunk", "filmgrain", "sepianoir", "lomo", "polaroid", "chrome", "haze", "golden", "amber", "matte", "ocean", "midnight", "forest", "overcast", "drama", "retrowave", "fog", "tealnights", "goldtransit", "amberroast", "mossforest", "coolhaze"] },
+  { label: "Glass & Water", ids: ["liquidglass", "wetshine", "mirrorwater", "waterripple", "crystalrefraction", "aquaprism", "glassshimmer", "causticwater"] },
+  { label: "Glow & Light", ids: ["auroraflux", "bloombokeh", "godrays", "springpetals", "chromaticdream"] },
+  { label: "Artistic & Pixel", ids: ["neon", "sketch", "duotone", "popart", "glitch", "retro", "oilpainting", "watercolor", "pixelart"] },
+];
 
 const CROP_RATIOS = [
   { label: "Free", value: "free" },
@@ -106,6 +164,15 @@ const RESIZE_PRESETS = [
   { label: "4K 3840×2160", w: 3840, h: 2160 },
   { label: "Instagram 1080×1080", w: 1080, h: 1080 },
   { label: "Story 1080×1920", w: 1080, h: 1920 },
+];
+
+const VIDEO_ASPECT_RATIOS = [
+  { label: "Free", value: "free", ratio: null },
+  { label: "16:9", value: "16:9", ratio: 16 / 9 },
+  { label: "9:16", value: "9:16", ratio: 9 / 16 },
+  { label: "1:1", value: "1:1", ratio: 1 },
+  { label: "4:5", value: "4:5", ratio: 4 / 5 },
+  { label: "4:3", value: "4:3", ratio: 4 / 3 },
 ];
 
 function applyNeon(ctx: CanvasRenderingContext2D, w: number, h: number, intensity: number) {
@@ -465,6 +532,9 @@ export default function AiStylizer() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [styleId, setStyleId] = useState("vivid");
   const [intensity, setIntensity] = useState(100);
+  const [overlayIntensity, setOverlayIntensity] = useState(70);
+  const [overlaySpeed, setOverlaySpeed] = useState(50);
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [dragging, setDragging] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sliderPos, setSliderPos] = useState(50);
@@ -474,7 +544,8 @@ export default function AiStylizer() {
   const [videoSrc, setVideoSrc] = useState<string>("");
   const [videoProcessing, setVideoProcessing] = useState(false);
   const [videoError, setVideoError] = useState<string>("");
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isOriginalPlaying, setIsOriginalPlaying] = useState(false);
+  const [isStyledPlaying, setIsStyledPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoOrigRef = useRef<HTMLVideoElement>(null);
   const videoCompareRef = useRef<HTMLDivElement>(null);
@@ -490,6 +561,7 @@ export default function AiStylizer() {
   const [isDraggingSlider, setIsDraggingSlider] = useState(false);
   const compareRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const batchInputRef = useRef<HTMLInputElement>(null);
   const originalCanvasRef = useRef<HTMLCanvasElement>(null);
   const styledCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -504,17 +576,49 @@ export default function AiStylizer() {
   const [resizeW, setResizeW] = useState("");
   const [resizeH, setResizeH] = useState("");
   const [resizeDims, setResizeDims] = useState<{ w: number; h: number } | null>(null);
+  const [videoFraming, setVideoFraming] = useState<VideoFramingMode>("original");
+  const [videoQuality, setVideoQuality] = useState<VideoQualityTier>("social");
+  const [videoCodec, setVideoCodec] = useState<VideoCodec>("h264");
+  const [downloadNameTemplate, setDownloadNameTemplate] = useState("");
+  const [videoMeta, setVideoMeta] = useState<{ width: number; height: number; duration: number } | null>(null);
+  const [videoEnhance, setVideoEnhance] = useState(false);
+  const [videoCropRatio, setVideoCropRatio] = useState("free");
+  const [videoCropX, setVideoCropX] = useState("0");
+  const [videoCropY, setVideoCropY] = useState("0");
+  const [videoCropW, setVideoCropW] = useState("");
+  const [videoCropH, setVideoCropH] = useState("");
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
+  const [batchError, setBatchError] = useState("");
 
   const [downloadFormat, setDownloadFormat] = useState<"png" | "jpeg" | "webp">("png");
   const [downloadQuality, setDownloadQuality] = useState(90);
   const [fileSizeEstimate, setFileSizeEstimate] = useState<string>("");
 
   const [processingStyle, setProcessingStyle] = useState(false);
+  const restoredMediaRef = useRef(false);
 
   const isVideo = mediaType === "video";
-
   const selectedStyle = ALL_STYLES.find(s => s.id === styleId) ?? ALL_STYLES[0];
+  useEffect(() => {
+    const saved = localStorage.getItem("creative_studio_download_name_template");
+    if (saved !== null) setDownloadNameTemplate(saved);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("creative_studio_download_name_template", downloadNameTemplate);
+  }, [downloadNameTemplate]);
   const primaryImage = images[0] ?? null;
+  const visibleStyleCount = isVideo
+    ? VIDEO_STYLES.length + VIDEO_BEAUTY_STYLES.length
+    : ALL_STYLES.length;
+  const selectedVideoEffect = isVideo ? selectedStyle.videoEffect : undefined;
+  const isGlassWaterEffect = isVideo && GLASS_WATER_STYLE_IDS.has(styleId);
+
+  useEffect(() => {
+    if (isVideo && PIXEL_STYLE_IDS.has(styleId)) {
+      setStyleId("vivid");
+    }
+  }, [isVideo, styleId]);
 
   const imagesRef = useRef(images);
   imagesRef.current = images;
@@ -591,6 +695,7 @@ export default function AiStylizer() {
       setVideoSrc(url);
       setVideoError("");
       setImages([]);
+      void persistMediaAcrossRefresh(videoFile);
       if (PIXEL_STYLE_IDS.has(styleId)) {
         setStyleId("vivid");
       }
@@ -603,6 +708,7 @@ export default function AiStylizer() {
       const url = URL.createObjectURL(imageFile);
       const img = new window.Image();
       img.onload = () => {
+        void persistMediaAcrossRefresh(imageFile);
         setMediaType("image");
         setVideoFile(null);
         setVideoSrc("");
@@ -610,7 +716,15 @@ export default function AiStylizer() {
       };
       img.src = url;
     }
-  }, [styleId, videoSrc, images]);
+    }, [styleId, videoSrc, images]);
+
+  useEffect(() => {
+    if (restoredMediaRef.current || videoFile || images.length > 0) return;
+    restoredMediaRef.current = true;
+    void restoreMediaAcrossRefresh().then(file => {
+      if (file) loadMedia([file]);
+    });
+  }, [loadMedia, videoFile, images.length]);
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault(); setDragging(false);
@@ -644,8 +758,11 @@ export default function AiStylizer() {
   }, [primaryImage, selectedStyle, downloadFormat, downloadQuality, styleId, intensity, cropRect, resizeDims, mirrorFlipped]);
 
   const downloadVideoStyled = useCallback(async () => {
-    const hasStyle = selectedStyle.filter && selectedStyle.filter !== "none";
-    if (!videoFile || (!hasStyle && !mirrorFlipped)) return;
+    const hasStyle = Boolean(selectedStyle.filter && selectedStyle.filter !== "none");
+    const hasOverlay = Boolean(selectedStyle.videoEffect);
+    const hasResize = Boolean(resizeDims && resizeDims.w > 0 && resizeDims.h > 0);
+    const hasVideoCrop = Boolean(parseInt(videoCropW) > 0 && parseInt(videoCropH) > 0);
+    if (!videoFile || (!hasStyle && !hasOverlay && !mirrorFlipped && !hasResize && !hasVideoCrop)) return;
     setVideoProcessing(true);
     setVideoError("");
     try {
@@ -653,6 +770,23 @@ export default function AiStylizer() {
       fd.append("video", videoFile);
       fd.append("cssFilter", hasStyle ? selectedStyle.filter! : "none");
       fd.append("intensity", String(intensity));
+      fd.append("videoEffect", selectedStyle.videoEffect ?? "none");
+      fd.append("overlayIntensity", String(overlayIntensity));
+      fd.append("overlaySpeed", String(overlaySpeed));
+      fd.append("qualityTier", videoQuality);
+      fd.append("codec", videoCodec);
+      if (resizeDims && videoFraming !== "original") {
+        fd.append("outputWidth", String(resizeDims.w));
+        fd.append("outputHeight", String(resizeDims.h));
+        fd.append("framing", videoFraming);
+      }
+      if (videoEnhance) fd.append("enhance", "1");
+      if (hasVideoCrop) {
+        fd.append("cropX", videoCropX);
+        fd.append("cropY", videoCropY);
+        fd.append("cropWidth", videoCropW);
+        fd.append("cropHeight", videoCropH);
+      }
       if (mirrorFlipped) fd.append("mirror", "1");
       const res = await fetch("/api/media/stylize-video", { method: "POST", body: fd });
       if (!res.ok) {
@@ -660,16 +794,68 @@ export default function AiStylizer() {
         throw new Error(data.message || "Video stylization failed");
       }
       const { fileId } = await res.json();
+      const downloadName = makeVideoDownloadName(videoFile.name, selectedStyle.label, downloadNameTemplate, videoQuality, videoCodec);
       const a = document.createElement("a");
-      a.href = `/api/media/download/${fileId}`;
-      a.download = `styled-${styleId}.mp4`;
+      a.href = `/api/media/download/${fileId}?filename=${encodeURIComponent(downloadName)}`;
+      a.download = downloadName;
       a.click();
     } catch (err) {
       setVideoError(err instanceof Error ? err.message : "Failed to process video");
     } finally {
       setVideoProcessing(false);
     }
-  }, [videoFile, selectedStyle, styleId, intensity, mirrorFlipped]);
+  }, [videoFile, selectedStyle, styleId, intensity, overlayIntensity, overlaySpeed, resizeDims, videoFraming, videoQuality, videoCodec, downloadNameTemplate, videoEnhance, videoCropX, videoCropY, videoCropW, videoCropH, mirrorFlipped]);
+
+  const processBatchVideos = useCallback(async (files: File[]) => {
+    if (files.length === 0 || batchProcessing) return;
+    setBatchProcessing(true);
+    setBatchError("");
+    setBatchProgress({ done: 0, total: files.length });
+    const failures: string[] = [];
+    try {
+      for (const file of files) {
+        try {
+          const fd = new FormData();
+          fd.append("video", file);
+          fd.append("cssFilter", selectedStyle.filter && selectedStyle.filter !== "none" ? selectedStyle.filter : "none");
+          fd.append("intensity", String(intensity));
+          fd.append("videoEffect", selectedStyle.videoEffect ?? "none");
+          fd.append("overlayIntensity", String(overlayIntensity));
+          fd.append("overlaySpeed", String(overlaySpeed));
+          fd.append("qualityTier", videoQuality);
+          fd.append("codec", videoCodec);
+          if (resizeDims && videoFraming !== "original") {
+            fd.append("outputWidth", String(resizeDims.w));
+            fd.append("outputHeight", String(resizeDims.h));
+            fd.append("framing", videoFraming);
+          }
+          if (videoEnhance) fd.append("enhance", "1");
+          if (parseInt(videoCropW) > 0 && parseInt(videoCropH) > 0) {
+            fd.append("cropX", videoCropX);
+            fd.append("cropY", videoCropY);
+            fd.append("cropWidth", videoCropW);
+            fd.append("cropHeight", videoCropH);
+          }
+          if (mirrorFlipped) fd.append("mirror", "1");
+          const res = await fetch("/api/media/stylize-video", { method: "POST", body: fd });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || typeof data.fileId !== "string") throw new Error(data.message || "Export failed");
+          const downloadName = makeVideoDownloadName(file.name, selectedStyle.label, downloadNameTemplate, videoQuality, videoCodec);
+          const a = document.createElement("a");
+          a.href = `/api/media/download/${data.fileId}?filename=${encodeURIComponent(downloadName)}`;
+          a.download = downloadName;
+          a.click();
+        } catch (err) {
+          failures.push(`${file.name}: ${err instanceof Error ? err.message : "Export failed"}`);
+        } finally {
+          setBatchProgress(prev => ({ ...prev, done: prev.done + 1 }));
+        }
+      }
+      if (failures.length > 0) setBatchError(`${failures.length} file${failures.length === 1 ? "" : "s"} failed: ${failures.join("; ")}`);
+    } finally {
+      setBatchProcessing(false);
+    }
+  }, [batchProcessing, selectedStyle, intensity, overlayIntensity, overlaySpeed, resizeDims, videoFraming, videoQuality, videoCodec, downloadNameTemplate, videoEnhance, videoCropX, videoCropY, videoCropW, videoCropH, mirrorFlipped, styleId]);
 
   const videoFilterStyle = useMemo(() => {
     if (!isVideo || !selectedStyle.filter || selectedStyle.filter === "none" || styleId === "original") return "none";
@@ -701,21 +887,36 @@ export default function AiStylizer() {
         styled.currentTime = orig.currentTime;
       }
     };
-    const onPlay = () => { styled.currentTime = orig.currentTime; styled.play().catch(() => {}); setIsPlaying(true); };
-    const onPause = () => { styled.pause(); setIsPlaying(false); };
+    const onOrigPlay = () => setIsOriginalPlaying(true);
+    const onOrigPause = () => setIsOriginalPlaying(false);
+    const onStyledPlay = () => setIsStyledPlaying(true);
+    const onStyledPause = () => setIsStyledPlaying(false);
+    const onOrigEnded = () => setIsOriginalPlaying(false);
+    const onStyledEnded = () => setIsStyledPlaying(false);
     orig.addEventListener("seeked", sync);
-    orig.addEventListener("play", onPlay);
-    orig.addEventListener("pause", onPause);
-    const interval = setInterval(sync, 500);
+    orig.addEventListener("play", onOrigPlay);
+    orig.addEventListener("pause", onOrigPause);
+    orig.addEventListener("ended", onOrigEnded);
+    styled.addEventListener("play", onStyledPlay);
+    styled.addEventListener("pause", onStyledPause);
+    styled.addEventListener("ended", onStyledEnded);
+    const interval = setInterval(() => { if (!orig.paused && !styled.paused) sync(); }, 500);
     return () => {
       clearInterval(interval);
       orig.removeEventListener("seeked", sync);
-      orig.removeEventListener("play", onPlay);
-      orig.removeEventListener("pause", onPause);
+      orig.removeEventListener("play", onOrigPlay);
+      orig.removeEventListener("pause", onOrigPause);
+      orig.removeEventListener("ended", onOrigEnded);
+      styled.removeEventListener("play", onStyledPlay);
+      styled.removeEventListener("pause", onStyledPause);
+      styled.removeEventListener("ended", onStyledEnded);
     };
   }, [isVideo, videoSrc]);
 
-  useEffect(() => { setIsPlaying(false); }, [videoSrc]);
+  useEffect(() => {
+    setIsOriginalPlaying(false);
+    setIsStyledPlaying(false);
+  }, [videoSrc]);
 
   const handleSliderMove = useCallback((clientX: number) => {
     const container = compareRef.current ?? videoCompareRef.current;
@@ -826,6 +1027,21 @@ export default function AiStylizer() {
     setTempCropRect(null);
   };
 
+  const applyVideoAspectRatio = (value: string) => {
+    setVideoCropRatio(value);
+    const selected = VIDEO_ASPECT_RATIOS.find(r => r.value === value);
+    if (!selected?.ratio) return;
+    const sourceW = videoOrigRef.current?.videoWidth || parseInt(resizeW) || 1920;
+    const sourceH = videoOrigRef.current?.videoHeight || parseInt(resizeH) || 1080;
+    const sourceRatio = sourceW / sourceH;
+    const cropW = selected.ratio > sourceRatio ? sourceW : Math.round(sourceH * selected.ratio);
+    const cropH = selected.ratio > sourceRatio ? Math.round(sourceW / selected.ratio) : sourceH;
+    setVideoCropX(String(Math.max(0, Math.floor((sourceW - cropW) / 2))));
+    setVideoCropY(String(Math.max(0, Math.floor((sourceH - cropH) / 2))));
+    setVideoCropW(String(cropW));
+    setVideoCropH(String(cropH));
+  };
+
   const applyResize = () => {
     const w = parseInt(resizeW); const h = parseInt(resizeH);
     if (w > 0 && h > 0) { setResizeDims({ w, h }); }
@@ -840,60 +1056,76 @@ export default function AiStylizer() {
     return { w, h };
   }, [primaryImage, cropRect, resizeDims]);
 
+  const videoEstimate = useMemo(() => {
+    if (!videoFile || !videoMeta?.duration) return null;
+    const longEdge = Math.max(videoMeta.width, videoMeta.height);
+    const targetLongEdge = videoQuality === "social" ? 1920 : videoQuality === "high" ? 2560 : longEdge;
+    const scale = Math.min(1, targetLongEdge / Math.max(1, longEdge));
+    const width = Math.max(2, Math.floor(videoMeta.width * scale / 2) * 2);
+    const height = Math.max(2, Math.floor(videoMeta.height * scale / 2) * 2);
+    const h264Bitrate = videoQuality === "social" ? 8_000_000 : videoQuality === "high" ? 16_000_000 : 36_000_000;
+    const tierBitrate = videoCodec === "hevc" ? Math.round(h264Bitrate * 0.62) : h264Bitrate;
+    const audioBitrate = 192_000;
+    const bytes = videoMeta.duration * (tierBitrate + audioBitrate) / 8;
+    return { width, height, size: formatFileSize(bytes) };
+  }, [videoFile, videoMeta, videoQuality, videoCodec]);
+
   const sidebarContent = (
     <>
-      {/* Choose Style */}
-      <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Choose Style</p>
-        <div className="grid grid-cols-4 gap-1">
-          {STYLES.map(s => {
-            const disabledForVideo = isVideo && s.mode === "pixel";
-            return (
-              <Tooltip key={s.id}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => { if (!disabledForVideo) setStyleId(s.id); }}
-                    className={cn(
-                      "flex flex-col items-center gap-1 p-2 rounded-xl border transition-all group relative",
-                      disabledForVideo && "opacity-30 cursor-not-allowed",
-                      styleId === s.id && !disabledForVideo
-                        ? "border-purple-500/50 bg-purple-500/10"
-                        : "border-transparent hover:border-border hover:bg-muted/30"
-                    )}
-                  >
-                    <s.icon className={cn(
-                      "w-4 h-4 transition-all",
-                      styleId === s.id && !disabledForVideo ? "text-purple-400" : "text-muted-foreground opacity-60 group-hover:opacity-100"
-                    )} />
-                    <span className={cn(
-                      "text-[8px] font-medium leading-tight text-center truncate w-full",
-                      styleId === s.id && !disabledForVideo ? "text-purple-300" : "text-muted-foreground"
-                    )}>
-                      {s.label}
-                    </span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="left" className="text-xs bg-gray-900 text-white border-gray-700 shadow-xl z-[100] px-3 py-2">
-                  <p className="font-medium">{s.label}</p>
-                  <p className="text-gray-300">{disabledForVideo ? "Not available for video" : s.desc}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </div>
-      </div>
+      {/* Related style groups */}
+      {STYLE_GROUPS.map(group => {
+        const source = isVideo ? VIDEO_STYLES : STYLES;
+        const styles = source.filter(s => group.ids.includes(s.id));
+        if (styles.length === 0) return null;
+        return (
+          <div key={group.label} className="bg-card border border-border rounded-xl p-4 space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</p>
+            <div className="grid grid-cols-4 gap-1">
+              {styles.map(s => (
+                <Tooltip key={s.id}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setStyleId(s.id)}
+                      className={cn(
+                        "flex min-w-0 flex-col items-center gap-1 p-2 rounded-xl border transition-all group relative overflow-hidden",
+                        styleId === s.id
+                          ? "border-purple-500/50 bg-purple-500/10"
+                          : "border-transparent hover:border-border hover:bg-muted/30"
+                      )}
+                    >
+                      <s.icon className={cn(
+                        "w-4 h-4 transition-all",
+                        styleId === s.id ? "text-purple-400" : "text-muted-foreground opacity-60 group-hover:opacity-100"
+                      )} />
+                      <span className={cn(
+                        "w-full truncate text-[8px] font-medium leading-tight text-center",
+                        styleId === s.id ? "text-purple-300" : "text-muted-foreground"
+                      )}>
+                        {s.label}
+                      </span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="text-xs bg-gray-900 text-white border-gray-700 shadow-xl z-[100] px-3 py-2">
+                    <p className="font-medium">{s.label}</p>
+                    <p className="text-gray-300">{s.desc}</p>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          </div>
+        );
+      })}
 
-      {/* Beauty & Portrait */}
       <div className="bg-card border border-border rounded-xl p-4 space-y-3">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Beauty & Portrait</p>
         <div className="grid grid-cols-4 gap-1">
-          {BEAUTY_STYLES.map(s => (
+          {(isVideo ? VIDEO_BEAUTY_STYLES : BEAUTY_STYLES).map(s => (
             <Tooltip key={s.id}>
               <TooltipTrigger asChild>
                 <button
                   onClick={() => setStyleId(s.id)}
                   className={cn(
-                    "flex flex-col items-center gap-1 p-2 rounded-xl border transition-all group relative",
+                    "flex min-w-0 flex-col items-center gap-1 p-2 rounded-xl border transition-all group relative overflow-hidden",
                     styleId === s.id
                       ? "border-purple-500/50 bg-purple-500/10"
                       : "border-transparent hover:border-border hover:bg-muted/30"
@@ -904,7 +1136,7 @@ export default function AiStylizer() {
                     styleId === s.id ? "text-purple-400" : "text-muted-foreground opacity-60 group-hover:opacity-100"
                   )} />
                   <span className={cn(
-                    "text-[8px] font-medium leading-tight text-center truncate w-full",
+                    "w-full truncate text-[8px] font-medium leading-tight text-center",
                     styleId === s.id ? "text-purple-300" : "text-muted-foreground"
                   )}>
                     {s.label}
@@ -952,6 +1184,33 @@ export default function AiStylizer() {
         />
       </div>
 
+      {isGlassWaterEffect && selectedVideoEffect && (
+        <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Waves className="w-3.5 h-3.5 text-cyan-300" />
+            <div className="min-w-0">
+              <p className="font-semibold text-sm">Glass & Water Controls</p>
+              <p className="text-[10px] text-muted-foreground truncate">{selectedStyle.label} overlay</p>
+            </div>
+          </div>
+          <div>
+            <div className="flex justify-between mb-1.5">
+              <Label className="text-xs text-muted-foreground">Overlay intensity</Label>
+              <span className="text-xs text-muted-foreground">{overlayIntensity}%</span>
+            </div>
+            <Slider min={0} max={100} step={5} value={[overlayIntensity]} onValueChange={v => setOverlayIntensity(v[0])} />
+          </div>
+          <div>
+            <div className="flex justify-between mb-1.5">
+              <Label className="text-xs text-muted-foreground">Animation speed</Label>
+              <span className="text-xs text-muted-foreground">{overlaySpeed}%</span>
+            </div>
+            <Slider min={0} max={100} step={5} value={[overlaySpeed]} onValueChange={v => setOverlaySpeed(v[0])} />
+          </div>
+          <p className="text-[10px] text-muted-foreground">Controls apply to the live overlay and exported MP4.</p>
+        </div>
+      )}
+
       <div className="bg-card border border-border rounded-xl p-4 space-y-3">
         <div className="flex items-center gap-2">
           <Download className="w-3.5 h-3.5 text-muted-foreground" />
@@ -963,9 +1222,50 @@ export default function AiStylizer() {
             <p className="text-xs text-muted-foreground">
               Video will be processed server-side with FFmpeg and exported as MP4.
             </p>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Export quality</Label>
+              <Select value={videoQuality} onValueChange={v => setVideoQuality(v as VideoQualityTier)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="social">Social · 1080p · smaller file</SelectItem>
+                  <SelectItem value="high">High · up to 1440p · larger file</SelectItem>
+                  <SelectItem value="original">Original · native 4K · largest file</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">
+                Social and High preserve aspect ratio without cropping. Original keeps the full source resolution.
+              </p>
+              <div className="mt-2">
+                <Label className="text-[10px] text-muted-foreground">Video codec</Label>
+                <Select value={videoCodec} onValueChange={v => setVideoCodec(v as VideoCodec)}>
+                  <SelectTrigger className="h-8 text-xs mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="h264">H.264 · widest compatibility</SelectItem>
+                    <SelectItem value="hevc">H.265 / HEVC · smaller file</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {videoEstimate && (
+                <p className="text-[10px] text-muted-foreground">Estimated output: {videoEstimate.width}×{videoEstimate.height} · about {videoEstimate.size}</p>
+              )}
+              <div className="mt-2">
+                <Label className="text-[10px] text-muted-foreground">Download filename template</Label>
+                <input
+                  value={downloadNameTemplate}
+                  onChange={e => setDownloadNameTemplate(e.target.value)}
+                  placeholder="{name}-{style}"
+                  className="w-full mt-1 h-8 text-xs px-2 rounded-md border border-input bg-transparent"
+                  aria-label="Download filename template"
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground">Tokens: &#123;name&#125;, &#123;style&#125;, &#123;quality&#125;, &#123;codec&#125;. Blank uses uploaded name + style.</p>
+              </div>
+            </div>
+            {videoQuality === "original" && (
+              <p className="text-[10px] text-amber-500">Original quality can create very large downloads for 4K videos.</p>
+            )}
             <Button
               onClick={() => downloadVideoStyled()}
-              disabled={!videoFile || videoProcessing || styleId === "original" || !selectedStyle.filter || selectedStyle.filter === "none"}
+              disabled={!videoFile || videoProcessing || styleId === "original" || (!selectedStyle.filter && !selectedStyle.videoEffect) || (selectedStyle.filter === "none" && !selectedStyle.videoEffect)}
               className="w-full gap-2 bg-purple-600 hover:bg-purple-700 text-sm"
             >
               {videoProcessing ? (
@@ -1048,6 +1348,18 @@ export default function AiStylizer() {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="h-full flex flex-col overflow-hidden p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+        <input
+          ref={batchInputRef}
+          type="file"
+          accept="video/*"
+          multiple
+          className="hidden"
+          onChange={e => {
+            const files = e.target.files ? Array.from(e.target.files) : [];
+            e.target.value = "";
+            void processBatchVideos(files);
+          }}
+        />
         <div className="mb-6 shrink-0">
           <Link href="/">
             <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4">
@@ -1060,7 +1372,7 @@ export default function AiStylizer() {
             </div>
             <div>
               <h1 className="text-2xl font-bold">AI Stylizer</h1>
-              <p className="text-sm text-muted-foreground">Apply {ALL_STYLES.length} cinematic & artistic styles to images and videos</p>
+              <p className="text-sm text-muted-foreground">Apply {visibleStyleCount} cinematic & artistic styles to {isVideo ? "videos" : "images"}</p>
             </div>
             <div className="ml-auto flex items-center gap-2">
               <button
@@ -1142,21 +1454,70 @@ export default function AiStylizer() {
                         </TooltipTrigger>
                         <TooltipContent side="bottom" className="text-xs">Mirror horizontally</TooltipContent>
                       </Tooltip>
-                      <span className="text-[10px] text-muted-foreground ml-auto">{videoFile.name} ({formatFileSize(videoFile.size)})</span>
+                      <button
+                        type="button"
+                        onClick={() => batchInputRef.current?.click()}
+                        disabled={batchProcessing}
+                        className="h-6 rounded border border-border px-2 text-[10px] text-muted-foreground hover:text-foreground hover:border-foreground/40 disabled:opacity-50"
+                        title="Apply the selected style to multiple videos"
+                      >
+                        {batchProcessing ? `Batch ${batchProgress.done}/${batchProgress.total}` : "Batch Videos"}
+                      </button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => {
+                              const video = videoOrigRef.current;
+                              const sourceW = video?.videoWidth ?? 1280;
+                              const sourceH = video?.videoHeight ?? 720;
+                              setResizeW(String(resizeDims?.w ?? sourceW));
+                              setResizeH(String(resizeDims?.h ?? sourceH));
+                              if (!videoCropW || !videoCropH) {
+                                setVideoCropX("0");
+                                setVideoCropY("0");
+                                setVideoCropW(String(sourceW));
+                                setVideoCropH(String(sourceH));
+                              }
+                              setResizeOpen(true);
+                            }}
+                            className={cn(
+                              "w-6 h-6 rounded flex items-center justify-center transition-all border",
+                              resizeDims ? "bg-purple-600 border-purple-600 text-white" : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/40"
+                            )}
+                            aria-label="Resize video"
+                          >
+                            <Maximize className="w-3 h-3" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="text-xs">Resize video</TooltipContent>
+                      </Tooltip>
+                      <button
+                        type="button"
+                        onClick={() => setSoundEnabled(enabled => !enabled)}
+                        className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                        aria-label={soundEnabled ? "Mute video sound" : "Enable video sound"}
+                        title={soundEnabled ? "Mute video sound" : "Enable video sound"}
+                      >
+                        {soundEnabled ? <Volume2 className="h-3 w-3" /> : <VolumeX className="h-3 w-3" />}
+                        {soundEnabled ? "Sound on" : "Muted"}
+                      </button>
+                      <span className="flex min-w-0 max-w-full items-center gap-1 text-[10px] text-muted-foreground">
+                        <span className="min-w-0 flex-1 truncate" title={videoFile.name}>{shortenFileName(videoFile.name)}</span>
+                        <span className="shrink-0 whitespace-nowrap">({formatFileSize(videoFile.size)})</span>
+                      </span>
                     </div>
 
                     <div
                       ref={videoCompareRef}
                       className="relative rounded-xl overflow-hidden border border-border bg-black select-none cursor-col-resize mx-auto"
-                      style={{ aspectRatio: "5/4", maxHeight: "280px" }}
-                      onMouseDown={e => { e.preventDefault(); setIsDraggingSlider(true); handleSliderMove(e.clientX); }}
-                      onTouchStart={e => { setIsDraggingSlider(true); handleSliderMove(e.touches[0].clientX); }}
+                      style={{ aspectRatio: "4/3", width: "min(100%, 440px)", maxHeight: "330px" }}
                     >
                       <video
                         ref={videoOrigRef}
                         src={videoSrc}
+                        onLoadedMetadata={e => setVideoMeta({ width: e.currentTarget.videoWidth, height: e.currentTarget.videoHeight, duration: e.currentTarget.duration })}
                         loop
-                        muted
+                        muted={!soundEnabled}
                         playsInline
                         className="absolute inset-0 w-full h-full object-cover"
                         style={{
@@ -1180,7 +1541,30 @@ export default function AiStylizer() {
                         }}
                       />
 
-                      <div className="absolute top-0 bottom-0 z-10" style={{ left: `${mirrorFlipped ? 100 - sliderPos : sliderPos}%`, transform: "translateX(-50%)" }}>
+                      {selectedVideoEffect && (
+                        <div
+                          aria-hidden="true"
+                          className={cn("video-effect-overlay", `video-effect-${selectedVideoEffect}`)}
+                          style={{
+                            zIndex: compareFlipped ? 0 : 1,
+                            clipPath: compareFlipped ? undefined : `inset(0 0 0 ${sliderPos}%)`,
+                            ["--effect-strength" as string]: String(overlayIntensity / 100),
+                            ["--effect-speed" as string]: `${(12 - overlaySpeed * 0.08).toFixed(2)}s`,
+                          } as React.CSSProperties}
+                        />
+                      )}
+
+                      <div
+                        className="absolute top-0 bottom-0 z-10 cursor-col-resize touch-none"
+                        style={{ left: `${mirrorFlipped ? 100 - sliderPos : sliderPos}%`, transform: "translateX(-50%)" }}
+                        onMouseDown={e => { e.preventDefault(); e.stopPropagation(); setIsDraggingSlider(true); handleSliderMove(e.clientX); }}
+                        onTouchStart={e => { e.stopPropagation(); setIsDraggingSlider(true); handleSliderMove(e.touches[0].clientX); }}
+                        role="slider"
+                        aria-label="Compare split position"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(sliderPos)}
+                      >
                         <div className="w-0.5 h-full bg-white/80 shadow-lg" />
                         <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-white/90 shadow-lg flex items-center justify-center">
                           <div className="flex gap-0.5">
@@ -1202,15 +1586,38 @@ export default function AiStylizer() {
                           e.stopPropagation();
                           const orig = videoOrigRef.current;
                           if (!orig) return;
-                          if (orig.paused) { orig.play().catch(() => {}); } else { orig.pause(); }
+                          const styled = videoRef.current;
+                          if (orig.paused) {
+                            if (styled) orig.currentTime = styled.currentTime;
+                            orig.play().catch(() => {});
+                          } else {
+                            orig.pause();
+                          }
                         }}
-                        className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 w-11 h-11 rounded-full bg-black/65 hover:bg-black/85 backdrop-blur-sm border border-white/20 flex items-center justify-center transition-all active:scale-90 shadow-lg"
-                        aria-label={isPlaying ? "Pause" : "Play"}
+                        className="absolute bottom-3 left-[24%] -translate-x-1/2 z-20 w-10 h-10 rounded-full bg-black/70 hover:bg-black/90 backdrop-blur-sm border border-white/20 flex items-center justify-center transition-all active:scale-90 shadow-lg"
+                        aria-label={isOriginalPlaying ? "Pause original video" : "Play original video"}
+                        title={isOriginalPlaying ? "Pause original" : "Play original"}
                       >
-                        {isPlaying
-                          ? <Pause className="w-5 h-5 text-white fill-white" />
-                          : <Play  className="w-5 h-5 text-white fill-white translate-x-0.5" />
-                        }
+                        {isOriginalPlaying ? <Pause className="w-4 h-4 text-white fill-white" /> : <Play className="w-4 h-4 text-white fill-white translate-x-0.5" />}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const styled = videoRef.current;
+                          if (!styled) return;
+                          const orig = videoOrigRef.current;
+                          if (styled.paused) {
+                            if (orig) styled.currentTime = orig.currentTime;
+                            styled.play().catch(() => {});
+                          } else {
+                            styled.pause();
+                          }
+                        }}
+                        className="absolute bottom-3 right-[24%] translate-x-1/2 z-20 w-10 h-10 rounded-full bg-purple-700/80 hover:bg-purple-700/95 backdrop-blur-sm border border-white/20 flex items-center justify-center transition-all active:scale-90 shadow-lg"
+                        aria-label={isStyledPlaying ? "Pause styled video" : "Play styled video"}
+                        title={isStyledPlaying ? "Pause styled" : "Play styled"}
+                      >
+                        {isStyledPlaying ? <Pause className="w-4 h-4 text-white fill-white" /> : <Play className="w-4 h-4 text-white fill-white translate-x-0.5" />}
                       </button>
                     </div>
 
@@ -1341,6 +1748,7 @@ export default function AiStylizer() {
                     setVideoFile(null);
                     setVideoSrc("");
                     setMediaType("image");
+                    void clearPersistedMedia();
                     setCropRect(null);
                     setResizeDims(null);
                     setVideoError("");
@@ -1416,7 +1824,7 @@ export default function AiStylizer() {
         <Dialog open={resizeOpen} onOpenChange={setResizeOpen}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>Resize Image</DialogTitle>
+              <DialogTitle>{isVideo ? "Resize Video" : "Resize Image"}</DialogTitle>
               <DialogDescription>Set custom dimensions or choose a preset.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -1432,6 +1840,65 @@ export default function AiStylizer() {
                     className="w-full mt-1 h-8 text-sm px-2 rounded-md border border-input bg-transparent" />
                 </div>
               </div>
+              {isVideo && (
+                <div className="space-y-3 rounded-lg border border-border/70 p-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">Frame handling</Label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {([['original', 'Original'], ['fit', 'Fit + bars'], ['fill', 'Fill + crop']] as const).map(([value, label]) => (
+                        <Button key={value} type="button" variant={videoFraming === value ? "default" : "outline"} size="sm" className="h-7 text-[10px]" onClick={() => setVideoFraming(value)}>
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[10px] text-muted-foreground">Original keeps source framing. Fit adds bars. Fill crops only when explicitly selected.</p>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <input type="checkbox" checked={videoEnhance} onChange={e => setVideoEnhance(e.target.checked)} />
+                    Detail enhancement after stylization
+                  </label>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">Crop aspect ratio</Label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {VIDEO_ASPECT_RATIOS.map(ratio => (
+                        <Button
+                          key={ratio.value}
+                          type="button"
+                          variant={videoCropRatio === ratio.value ? "default" : "outline"}
+                          size="sm"
+                          className="h-7 text-[10px]"
+                          onClick={() => applyVideoAspectRatio(ratio.value)}
+                        >
+                          {ratio.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">Custom crop (source pixels)</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        ["X", videoCropX, setVideoCropX],
+                        ["Y", videoCropY, setVideoCropY],
+                        ["Width", videoCropW, setVideoCropW],
+                        ["Height", videoCropH, setVideoCropH],
+                      ].map(([label, value, setter]) => (
+                        <div key={label as string}>
+                          <Label className="text-[10px]">{label as string}</Label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={value as string}
+                            onChange={e => (setter as React.Dispatch<React.SetStateAction<string>>)(e.target.value)}
+                            className="w-full mt-1 h-8 text-sm px-2 rounded-md border border-input bg-transparent"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[10px] text-muted-foreground">The crop is applied first, then the output width and height are applied.</p>
+                  </div>
+                </div>
+              )}
               <div>
                 <Label className="text-xs text-muted-foreground mb-2 block">Presets</Label>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -1444,7 +1911,7 @@ export default function AiStylizer() {
                 </div>
               </div>
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" size="sm" onClick={() => { setResizeDims(null); setResizeOpen(false); }}>
+                <Button variant="ghost" size="sm" onClick={() => { setResizeDims(null); setVideoFraming("original"); setVideoEnhance(false); setResizeOpen(false); }}>
                   Clear
                 </Button>
                 <Button size="sm" className="bg-purple-600 hover:bg-purple-700" onClick={applyResize}>
@@ -1463,4 +1930,91 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return bytes + " B";
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+const PERSISTED_MEDIA_DB = "creative-studio-media";
+const PERSISTED_MEDIA_STORE = "uploads";
+const PERSISTED_MEDIA_KEY = "current";
+
+function openPersistedMediaDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(PERSISTED_MEDIA_DB, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(PERSISTED_MEDIA_STORE);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function persistMediaAcrossRefresh(file: File): Promise<void> {
+  try {
+    const db = await openPersistedMediaDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(PERSISTED_MEDIA_STORE, "readwrite");
+      tx.objectStore(PERSISTED_MEDIA_STORE).put({ file, name: file.name, type: file.type, lastModified: file.lastModified }, PERSISTED_MEDIA_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  } catch {}
+}
+
+async function restoreMediaAcrossRefresh(): Promise<File | null> {
+  try {
+    const db = await openPersistedMediaDb();
+    const record = await new Promise<{ file?: File; name: string; type: string; lastModified: number } | undefined>((resolve, reject) => {
+      const tx = db.transaction(PERSISTED_MEDIA_STORE, "readonly");
+      const request = tx.objectStore(PERSISTED_MEDIA_STORE).get(PERSISTED_MEDIA_KEY);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    if (!record) return null;
+    if (record.file instanceof File) return record.file;
+    return new File([record.file as unknown as Blob], record.name, { type: record.type, lastModified: record.lastModified });
+  } catch {
+    return null;
+  }
+}
+
+async function clearPersistedMedia(): Promise<void> {
+  try {
+    const db = await openPersistedMediaDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(PERSISTED_MEDIA_STORE, "readwrite");
+      tx.objectStore(PERSISTED_MEDIA_STORE).delete(PERSISTED_MEDIA_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  } catch {}
+}
+
+function makeVideoDownloadName(fileName: string, styleLabel: string, template: string, quality: VideoQualityTier, codec: VideoCodec): string {
+  const name = makeDownloadStem(fileName);
+  const style = makeDownloadStem(styleLabel);
+  const qualityLabel = quality === "original" ? "original" : quality;
+  const codecLabel = codec === "hevc" ? "hevc" : "h264";
+  const pattern = template.trim() || "{name}-{style}";
+  const values = { name, style, quality: qualityLabel, codec: codecLabel };
+  const rendered = pattern.replace(/\{(name|style|quality|codec)\}/gi, (_match, token: string) => values[token.toLowerCase() as keyof typeof values] ?? "");
+  return `${makeDownloadStem(rendered)}.mp4`;
+}
+
+function makeDownloadStem(name: string): string {
+  const withoutExtension = name.replace(/\.[^.]+$/, "");
+  return withoutExtension
+    .replace(/[^a-zA-Z0-9\s_-]/g, "")
+    .trim()
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100) || "video";
+}
+
+function shortenFileName(name: string, wordLimit = 3): string {
+  const extensionMatch = name.match(/(\.[^.]+)$/);
+  const extension = extensionMatch?.[1] ?? "";
+  const baseName = name.slice(0, extension ? -extension.length : undefined);
+  const words = baseName.split(/[\s_]+/).filter(Boolean);
+  if (words.length <= wordLimit) return name;
+  return `${words.slice(0, wordLimit).join(" ")}...${extension}`;
 }

@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -54,5 +54,23 @@ if (process.env.NODE_ENV === "production") {
     );
   }
 }
+
+// Keep upload and route failures JSON-shaped so the frontend can show the real
+// cause instead of the generic HTML "Server Error" page.
+app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
+  const code = err && typeof err === "object" && "code" in err ? String((err as { code?: unknown }).code) : "";
+  if (code === "LIMIT_FILE_SIZE") {
+    res.status(413).json({
+      error: "Upload too large",
+      message: "4K uploads are limited to 500 MB. Choose Social or High quality if the source is larger.",
+    });
+    return;
+  }
+  if (err instanceof Error && err.message.includes("Only video files are supported")) {
+    res.status(400).json({ error: "Bad Request", message: err.message });
+    return;
+  }
+  next(err);
+});
 
 export default app;
