@@ -14,6 +14,7 @@ COPY artifacts/api-server/package.json ./artifacts/api-server/
 COPY artifacts/media-studio/package.json ./artifacts/media-studio/
 COPY lib/api-spec/package.json ./lib/api-spec/
 COPY lib/api-zod/package.json ./lib/api-zod/
+COPY lib/video-effects/package.json ./lib/video-effects/
 COPY lib/api-client-react/package.json ./lib/api-client-react/
 COPY lib/db/package.json ./lib/db/
 RUN pnpm install --frozen-lockfile
