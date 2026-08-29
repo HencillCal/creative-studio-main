@@ -9,6 +9,13 @@ import { translate as gTranslate } from "@vitalets/google-translate-api";
 import { ADMIN_PASSWORD } from "../config/admin-config.js";
 import { sendOpsAlert } from "../lib/ops-alert.js";
 import { buildAuroraFluxOverlayFilter } from "../lib/video-overlay.js";
+import {
+  enqueueVideoExport,
+  getVideoExportChunkSeconds,
+  getVideoExportStatus,
+  isVideoExportQueueEnabled,
+  shouldQueueVideoExport,
+} from "../lib/video-export-queue.js";
 
 const router: IRouter = Router();
 
@@ -1757,9 +1764,11 @@ router.post("/stylize-video", videoMergeUpload.single("video"), async (req: Requ
 
   const outputId = `${uuidv4()}.mp4`;
   const outputPath = path.join(outputDir, outputId);
+  let handedToQueue = false;
 
   try {
     const audioPresent = await hasAudioStream(file.path);
+    const durationSeconds = await ffprobe(file.path);
     const sourceDimensions = await ffprobeVideoDimensions(file.path);
     const sourceWidth = cropWidth ?? sourceDimensions?.width ?? 1920;
     const sourceHeight = cropHeight ?? sourceDimensions?.height ?? 1080;
@@ -1779,8 +1788,7 @@ router.post("/stylize-video", videoMergeUpload.single("video"), async (req: Requ
     // Fast preset is materially quicker for delivery tiers while Original
     // retains medium for the best compression efficiency on 4K masters.
     const encodePreset = qualityTier === "original" ? "medium" : "fast";
-    const args = [
-      "-i", file.path,
+    const encodeArgs = [
       "-vf", ffmpegFilter,
       ...(audioPresent ? ["-c:a", "aac", "-b:a", "192k"] : ["-an"]),
       "-c:v", codec === "hevc" ? "libx265" : "libx264",
@@ -1792,11 +1800,23 @@ router.post("/stylize-video", videoMergeUpload.single("video"), async (req: Requ
       "-threads", "0",
       "-pix_fmt", "yuv420p",
       "-movflags", "+faststart",
-      "-y",
-      outputPath,
     ];
 
-    await runProcess("ffmpeg", args);
+    if (isVideoExportQueueEnabled() && shouldQueueVideoExport(durationSeconds)) {
+      const job = await enqueueVideoExport({
+        inputPath: file.path,
+        outputPath,
+        outputDir,
+        durationSeconds,
+        encodeArgs,
+        chunkSeconds: getVideoExportChunkSeconds(),
+      });
+      handedToQueue = true;
+      res.status(202).json({ queued: true, jobId: job.id });
+      return;
+    }
+
+    await runProcess("ffmpeg", ["-i", file.path, ...encodeArgs, "-y", outputPath]);
 
     scheduleCleanup(outputPath, 30 * 60 * 1000);
     res.json({ fileId: outputId });
@@ -1804,7 +1824,25 @@ router.post("/stylize-video", videoMergeUpload.single("video"), async (req: Requ
     try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch {}
     res.status(500).json({ error: "Video stylization failed", message: err instanceof Error ? err.message : "Unknown error" });
   } finally {
-    scheduleCleanup(file.path, 0);
+    if (!handedToQueue) scheduleCleanup(file.path, 0);
+  }
+});
+
+router.get("/stylize-video/jobs/:jobId", async (req: Request, res: Response) => {
+  if (!isVideoExportQueueEnabled()) {
+    res.status(503).json({ error: "Video export queue is unavailable", message: "Set REDIS_URL to enable long-video processing." });
+    return;
+  }
+  try {
+    const jobId = typeof req.params.jobId === "string" ? req.params.jobId : req.params.jobId[0];
+    const status = await getVideoExportStatus(jobId);
+    if (!status) {
+      res.status(404).json({ error: "Not Found", message: "Video export job not found" });
+      return;
+    }
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: "Could not read video export status", message: err instanceof Error ? err.message : "Unknown error" });
   }
 });
 
