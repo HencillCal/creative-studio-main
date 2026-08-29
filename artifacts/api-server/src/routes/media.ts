@@ -1089,12 +1089,14 @@ router.post(
 const videoMergeUpload = multer({
   storage,
   limits: {
-    fileSize: 150 * 1024 * 1024,
+    // 4K source uploads can exceed 150 MB; keep the limit high enough for
+    // native-resolution processing while still preventing unbounded uploads.
+    fileSize: 500 * 1024 * 1024,
     files: 20,
   },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("video/") || file.mimetype.startsWith("audio/")) cb(null, true);
-    else cb(new Error("Only video and audio files are supported"));
+    else cb(null, false);
   },
 });
 
@@ -1108,6 +1110,26 @@ function ffprobe(filePath: string): Promise<number> {
     proc.stdout?.on("data", (d: Buffer) => { out += d.toString(); });
     proc.on("close", () => { resolve(parseFloat(out.trim()) || 0); });
     proc.on("error", () => resolve(0));
+  });
+}
+
+function ffprobeVideoDimensions(filePath: string): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const proc = spawn("ffprobe", [
+      "-v", "error", "-select_streams", "v:0",
+      "-show_entries", "stream=width,height",
+      "-of", "csv=p=0:s=x", filePath,
+    ]);
+    let out = "";
+    proc.stdout?.on("data", (d: Buffer) => { out += d.toString(); });
+    proc.on("close", () => {
+      const match = out.trim().match(/^(\d+)x(\d+)$/);
+      if (!match) { resolve(null); return; }
+      const width = Number(match[1]);
+      const height = Number(match[2]);
+      resolve(width > 0 && height > 0 ? { width, height } : null);
+    });
+    proc.on("error", () => resolve(null));
   });
 }
 
@@ -1475,11 +1497,22 @@ router.post("/merge", videoMergeUpload.any(), async (req: Request, res: Response
       const withAudioPath = path.join(uploadDir, `${uuidv4()}_audio.mp4`);
       tempFiles.push(withAudioPath);
       const origHasAudio = await hasAudioStream(outputPath);
+      const bgVolume = Math.max(0, Math.min(2, Number(spec.audioVolume ?? 1) || 0));
+      const originalVolume = Math.max(0, Math.min(2, Number(spec.originalVolume ?? 1) || 0));
+      const fadeIn = Math.max(0, Math.min(30, Number(spec.audioFadeIn ?? 0) || 0));
+      const fadeOut = Math.max(0, Math.min(30, Number(spec.audioFadeOut ?? 0) || 0));
+      const totalDuration = Math.max(0, Number(spec.totalDuration ?? 0) || 0);
+      const bgFilters = [`volume=${bgVolume.toFixed(3)}`];
+      if (fadeIn > 0) bgFilters.push(`afade=t=in:st=0:d=${fadeIn.toFixed(3)}`);
+      if (fadeOut > 0 && totalDuration > fadeOut) {
+        bgFilters.push(`afade=t=out:st=${Math.max(0, totalDuration - fadeOut).toFixed(3)}:d=${fadeOut.toFixed(3)}`);
+      }
       const audioArgs: string[] = ["-y", "-i", outputPath, "-stream_loop", "-1", "-i", audioSrcPath];
       if (spec.muteOriginal || !origHasAudio) {
         audioArgs.push(
+          "-filter_complex", `[1:a]${bgFilters.join(",")} [aout]`,
           "-map", "0:v",
-          "-map", "1:a",
+          "-map", "[aout]",
           "-c:v", "copy",
           "-c:a", "aac", "-ar", "44100", "-ac", "2",
           "-shortest",
@@ -1487,7 +1520,7 @@ router.post("/merge", videoMergeUpload.any(), async (req: Request, res: Response
         );
       } else {
         audioArgs.push(
-          "-filter_complex", "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=2[aout]",
+          "-filter_complex", `[0:a]volume=${(spec.muteOriginal ? 0 : originalVolume).toFixed(3)}[orig];[1:a]${bgFilters.join(",")} [bg];[orig][bg]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]`,
           "-map", "0:v",
           "-map", "[aout]",
           "-c:v", "copy",
@@ -1574,6 +1607,74 @@ function parseCssFilter(cssFilter: string, intensityPct: number): string {
   return filters.length > 0 ? filters.join(",") : "";
 }
 
+type VideoOverlayEffect = "liquid-glass" | "wet-shine" | "mirror-water" | "water-ripple" | "bloom-bokeh" | "god-rays" | "spring-petals" | "chromatic-dream" | "crystal-refraction" | "aqua-prism" | "glass-shimmer" | "caustic-water" | "aurora-flux";
+
+function parseVideoOverlay(effect: string, intensityPct: number, speedPct: number): string {
+  const supported = new Set<VideoOverlayEffect>([
+    "liquid-glass", "wet-shine", "mirror-water", "water-ripple", "bloom-bokeh", "god-rays", "spring-petals", "chromatic-dream", "crystal-refraction", "aqua-prism", "glass-shimmer", "caustic-water", "aurora-flux",
+  ]);
+  if (!supported.has(effect as VideoOverlayEffect)) return "";
+
+  const strength = 0.06 + (Math.max(0, Math.min(100, intensityPct)) / 100) * 0.32;
+  const period = 14 - (Math.max(0, Math.min(100, speedPct)) / 100) * 11;
+  const blur = 1 + (Math.max(0, Math.min(100, intensityPct)) / 100) * 5;
+  const s = strength.toFixed(3);
+  const p = period.toFixed(2);
+  const b = blur.toFixed(2);
+
+  switch (effect as VideoOverlayEffect) {
+    case "liquid-glass":
+      return `split=2[base][soft];[soft]gblur=sigma=${b},eq=saturation=1.35:brightness=0.04[glow];[base][glow]blend=all_mode=screen:all_opacity=${s},format=yuv420p`;
+    case "wet-shine":
+      return `drawbox=x='iw*0.2':y=0:w='iw*0.12':h=ih:color=white@${s}:t=fill,format=yuv420p`;
+    case "mirror-water":
+      return `split=2[top][reflection];[reflection]vflip,scale=iw:ih*0.5,crop=iw:ih*0.5:0:ih*0.5,gblur=sigma=${b}[reflectionBlur];[top][reflectionBlur]overlay=0:H*0.5,format=yuv420p`;
+    case "water-ripple":
+      return `split=2[base][ripple];[ripple]scale=iw:ih,gblur=sigma=${Math.max(1, blur / 2).toFixed(2)},hue=h='sin(t*${(2 / p).toFixed(3)})*8':s=1.15[rippleSoft];[base][rippleSoft]blend=all_mode=screen:all_opacity=${(strength * 0.9).toFixed(3)},format=yuv420p`;
+    case "bloom-bokeh":
+      return `split=2[base][bloom];[bloom]gblur=sigma=${(blur * 2).toFixed(2)},eq=brightness=0.08:saturation=1.2[bloomSoft];[base][bloomSoft]blend=all_mode=screen:all_opacity=${s},format=yuv420p`;
+    case "god-rays":
+      return `drawbox=x='iw*0.16':y=0:w='iw*0.06':h=ih:color=0xffd98a@${s}:t=fill,drawbox=x='iw*0.44':y=0:w='iw*0.035':h=ih:color=0xfff1bd@${(strength * 0.7).toFixed(3)}:t=fill,boxblur=${Math.max(1, Math.round(blur))},format=yuv420p`;
+    case "spring-petals":
+      return `drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='*':fontcolor=0xffd9eaff@${(strength * 2).toFixed(3)}:fontsize=24:x='(sin(t*${(18 / period).toFixed(3)})+1)*w*0.5':y='(cos(t*${(11 / period).toFixed(3)})+1)*h*0.5',drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='o':fontcolor=0xfff2c5d8@${(strength * 2.2).toFixed(3)}:fontsize=28:x='(cos(t*${(9 / period).toFixed(3)})+1)*w*0.5':y='(sin(t*${(15 / period).toFixed(3)})+1)*h*0.5',format=yuv420p`;
+    case "chromatic-dream":
+      return `rgbashift=rh=${Math.max(1, Math.round(strength * 10))}:bh=-${Math.max(1, Math.round(strength * 8))},split=2[base][soft];[soft]gblur=sigma=${b}[glow];[base][glow]blend=all_mode=screen:all_opacity=${s},format=yuv420p`;
+    case "crystal-refraction":
+      return `split=2[base][prism];[prism]gblur=sigma=${b},hue=h='${(speedPct / 10).toFixed(2)}*t':s=1.35[prismSoft];[base][prismSoft]blend=all_mode=screen:all_opacity=${s},format=yuv420p`;
+    case "aqua-prism":
+      return `drawbox=x='iw*0.375':y=0:w='iw*0.18':h=ih:color=0x76e7ff@${s}:t=fill,eq=saturation=1.25:contrast=1.08,format=yuv420p`;
+    case "glass-shimmer":
+      return `drawbox=x='iw*0.425':y=0:w='iw*0.09':h=ih:color=white@${(strength * 1.8).toFixed(3)}:t=fill,gblur=sigma=${Math.max(1, blur / 2).toFixed(2)},format=yuv420p`;
+    case "caustic-water":
+      return `split=2[base][caustic];[caustic]gblur=sigma=${Math.max(1, blur / 1.5).toFixed(2)},eq=brightness=0.06:saturation=1.4[causticSoft];[base][causticSoft]blend=all_mode=screen:all_opacity=${(strength * 1.15).toFixed(3)},format=yuv420p`;
+    case "aurora-flux":
+      return `split=2[base][aurora];[aurora]gblur=sigma=${Math.max(1, blur / 1.6).toFixed(2)},hue=h='sin(t*${(2.4 / p).toFixed(3)})*18':s=1.5[auroraSoft];[base][auroraSoft]blend=all_mode=screen:all_opacity=${(strength * 1.2).toFixed(3)},format=yuv420p`;
+  }
+}
+
+function parseVideoDimension(value: unknown): number | null {
+  const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number(value);
+  if (!Number.isFinite(parsed) || parsed < 64 || parsed > 7680) return null;
+  return Math.floor(parsed / 2) * 2;
+}
+
+function parseVideoOffset(value: unknown): number | null {
+  const parsed = typeof value === "string" ? Number.parseInt(value, 10) : Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 7680) return null;
+  return Math.floor(parsed);
+}
+
+function bitrateFloorForDimensions(width: number, height: number): number {
+  const longEdge = Math.max(width, height);
+  if (longEdge <= 854) return 2_500_000;
+  if (longEdge <= 1280) return 5_000_000;
+  if (longEdge <= 1920) return 8_000_000;
+  if (longEdge <= 2560) return 16_000_000;
+  // Target slightly above the documented floor because measured stream bitrate
+  // can land a little below the nominal rate after container/audio overhead.
+  return 36_000_000;
+}
+
 router.post("/stylize-video", videoMergeUpload.single("video"), async (req: Request, res: Response) => {
   const file = req.file;
   if (!file) {
@@ -1589,38 +1690,109 @@ router.post("/stylize-video", videoMergeUpload.single("video"), async (req: Requ
 
   const cssFilter = typeof req.body.cssFilter === "string" ? req.body.cssFilter : "";
   const intensity = Math.max(0, Math.min(100, parseInt(req.body.intensity) || 100));
+  const videoEffect = typeof req.body.videoEffect === "string" ? req.body.videoEffect : "none";
+  const overlayIntensity = Math.max(0, Math.min(100, parseInt(req.body.overlayIntensity) || 70));
+  const overlaySpeed = Math.max(0, Math.min(100, parseInt(req.body.overlaySpeed) || 50));
+  const outputWidth = parseVideoDimension(req.body.outputWidth);
+  const outputHeight = parseVideoDimension(req.body.outputHeight);
+  const qualityTier = req.body.qualityTier === "high" || req.body.qualityTier === "original" ? req.body.qualityTier : "social";
+  const codec = req.body.codec === "hevc" ? "hevc" : "h264";
+  const framing = req.body.framing === "fit" || req.body.framing === "fill" ? req.body.framing : "original";
+  const enhance = req.body.enhance === "1" || req.body.enhance === "true";
+  const cropX = parseVideoOffset(req.body.cropX);
+  const cropY = parseVideoOffset(req.body.cropY);
+  const cropWidth = parseVideoDimension(req.body.cropWidth);
+  const cropHeight = parseVideoDimension(req.body.cropHeight);
   const mirror = req.body.mirror === "1" || req.body.mirror === "true";
 
   const hasFilter = cssFilter && cssFilter !== "none";
-  if (!hasFilter && !mirror) {
+  const overlayFilter = parseVideoOverlay(videoEffect, overlayIntensity, overlaySpeed);
+  const cropFilter = cropWidth && cropHeight
+    ? `crop=min(${cropWidth}\\,iw):min(${cropHeight}\\,ih):min(max(${cropX ?? 0}\\,0)\\,iw-min(${cropWidth}\\,iw)):min(max(${cropY ?? 0}\\,0)\\,ih-min(${cropHeight}\\,ih))`
+    : "";
+  const resizeFilter = outputWidth && outputHeight
+    ? framing === "fit"
+      ? `scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=decrease:flags=lanczos,pad=${outputWidth}:${outputHeight}:(ow-iw)/2:(oh-ih)/2:color=black`
+      : framing === "fill"
+        ? `scale=${outputWidth}:${outputHeight}:force_original_aspect_ratio=increase:flags=lanczos,crop=${outputWidth}:${outputHeight}:(iw-ow)/2:(ih-oh)/2`
+        : ""
+    : "";
+  const enhancementFilter = enhance ? "unsharp=5:5:0.35:5:5:0" : "";
+  if (!hasFilter && !overlayFilter && !mirror && !resizeFilter && !cropFilter && !enhancementFilter) {
     scheduleCleanup(file.path, 0);
     res.status(400).json({ error: "Bad Request", message: "No style filter specified" });
     return;
   }
 
   let ffmpegFilter = hasFilter ? parseCssFilter(cssFilter, intensity) : "";
+  if (overlayFilter) {
+    ffmpegFilter = ffmpegFilter
+      ? `${ffmpegFilter.replace(/,format=yuv420p$/, "")},${overlayFilter}`
+      : overlayFilter;
+  }
   if (hasFilter && !ffmpegFilter) {
     scheduleCleanup(file.path, 0);
     res.status(400).json({ error: "Bad Request", message: "Could not parse CSS filter" });
     return;
   }
 
+  if (cropFilter) {
+    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter.replace(/,format=yuv420p$/, "")},${cropFilter},format=yuv420p` : `${cropFilter},format=yuv420p`;
+  }
+  if (resizeFilter) {
+    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter.replace(/,format=yuv420p$/, "")},${resizeFilter},format=yuv420p` : `${resizeFilter},format=yuv420p`;
+  }
+  if (qualityTier !== "original" && !(outputWidth && outputHeight && framing !== "original")) {
+    const capLongEdge = qualityTier === "social" ? 1920 : 2560;
+    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter.replace(/,format=yuv420p$/, "")},scale='min(${capLongEdge},iw)':'min(${capLongEdge},iw)/a':force_original_aspect_ratio=decrease:flags=lanczos,format=yuv420p` : `scale='min(${capLongEdge},iw)':'min(${capLongEdge},iw)/a':force_original_aspect_ratio=decrease:flags=lanczos,format=yuv420p`;
+  }
   if (mirror) {
     ffmpegFilter = ffmpegFilter ? `hflip,${ffmpegFilter}` : "hflip,format=yuv420p";
   }
+  if (enhancementFilter) {
+    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter.replace(/,format=yuv420p$/, "")},${enhancementFilter},format=yuv420p` : `${enhancementFilter},format=yuv420p`;
+  }
+
+  // H.264 with yuv420p requires even dimensions. Normalize odd source/crop sizes
+  // at the very end so FFmpeg never silently pads an extra gray row or column.
+  ffmpegFilter = `${ffmpegFilter},scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos`;
 
   const outputId = `${uuidv4()}.mp4`;
   const outputPath = path.join(outputDir, outputId);
 
   try {
     const audioPresent = await hasAudioStream(file.path);
+    const sourceDimensions = await ffprobeVideoDimensions(file.path);
+    const sourceWidth = cropWidth ?? sourceDimensions?.width ?? 1920;
+    const sourceHeight = cropHeight ?? sourceDimensions?.height ?? 1080;
+    const tierLongEdge = qualityTier === "social" ? 1920 : qualityTier === "high" ? 2560 : Math.max(sourceWidth, sourceHeight);
+    const tierScale = Math.min(1, tierLongEdge / Math.max(sourceWidth, sourceHeight));
+    const tierWidth = Math.max(64, Math.floor((sourceWidth * tierScale) / 2) * 2);
+    const tierHeight = Math.max(64, Math.floor((sourceHeight * tierScale) / 2) * 2);
+    const qualityWidth = outputWidth && outputHeight && framing !== "original" ? outputWidth : tierWidth;
+    const qualityHeight = outputWidth && outputHeight && framing !== "original" ? outputHeight : tierHeight;
+    // Use quality-based encoding instead of forcing a fixed 4K CBR floor. A
+    // rigid 36 Mbps min/max rate made long 4K exports unnecessarily large and
+    // increased CPU/memory pressure, which could make the dev service appear to
+    // disappear during a heavy request.
+    const crf = codec === "hevc"
+      ? (qualityTier === "social" ? 24 : qualityTier === "high" ? 22 : 20)
+      : (qualityTier === "social" ? 22 : qualityTier === "high" ? 20 : 18);
+    // Fast preset is materially quicker for delivery tiers while Original
+    // retains medium for the best compression efficiency on 4K masters.
+    const encodePreset = qualityTier === "original" ? "medium" : "fast";
     const args = [
       "-i", file.path,
       "-vf", ffmpegFilter,
-      ...(audioPresent ? ["-c:a", "aac", "-b:a", "128k"] : ["-an"]),
-      "-c:v", "libx264",
-      "-preset", "fast",
-      "-crf", "23",
+      ...(audioPresent ? ["-c:a", "aac", "-b:a", "192k"] : ["-an"]),
+      "-c:v", codec === "hevc" ? "libx265" : "libx264",
+      "-preset", encodePreset,
+      "-crf", String(crf),
+      ...(codec === "hevc" ? ["-tag:v", "hvc1"] : []),
+      // Allow FFmpeg to use the VPS CPU cores. The previous forced
+      // single-thread configuration made 4K exports unnecessarily slow.
+      "-threads", "0",
+      "-pix_fmt", "yuv420p",
       "-movflags", "+faststart",
       "-y",
       outputPath,
@@ -1669,9 +1841,45 @@ router.get("/download/:fileId", (req: Request, res: Response) => {
   };
 
   const mimeType = mimeTypes[ext] ?? "application/octet-stream";
+  const stat = fs.statSync(filePath);
+  const total = stat.size;
+  const range = req.headers.range;
+  const requestedName = typeof req.query.filename === "string" ? req.query.filename : fileId;
+  const safeName = requestedName
+    .replace(/[^a-zA-Z0-9._ -]/g, "")
+    .trim()
+    .replace(/[\s_-]+/g, "-")
+    .slice(0, 180) || fileId;
+  const downloadName = safeName.toLowerCase().endsWith(ext) ? safeName : `${safeName}${ext}`;
   res.setHeader("Content-Type", mimeType);
-  res.setHeader("Content-Disposition", `attachment; filename="${fileId}"`);
-  res.sendFile(filePath);
+  res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
+  res.setHeader("Accept-Ranges", "bytes");
+  res.setHeader("Cache-Control", "public, max-age=1800");
+
+  if (!range) {
+    res.setHeader("Content-Length", total);
+    res.status(200).sendFile(filePath);
+    return;
+  }
+
+  const match = range.match(/^bytes=(\d*)-(\d*)$/);
+  if (!match) {
+    res.setHeader("Content-Range", `bytes */${total}`);
+    res.status(416).end();
+    return;
+  }
+  const start = match[1] ? Number(match[1]) : Math.max(0, total - Number(match[2] || 0));
+  const requestedEnd = match[2] ? Number(match[2]) : total - 1;
+  const end = Math.min(requestedEnd, total - 1);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || start > end || start >= total) {
+    res.setHeader("Content-Range", `bytes */${total}`);
+    res.status(416).end();
+    return;
+  }
+  res.status(206);
+  res.setHeader("Content-Range", `bytes ${start}-${end}/${total}`);
+  res.setHeader("Content-Length", end - start + 1);
+  fs.createReadStream(filePath, { start, end }).pipe(res);
 });
 
 // ── Audio Transcription — POST /api/media/transcribe ─────────────────────────

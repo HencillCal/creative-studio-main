@@ -332,3 +332,264 @@
     box-shadow: 0 0 30px rgba(120, 80, 255, 0.15);
   }
 }
+
+
+/* AI Stylizer video effect overlays */
+.video-effect-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.video-effect-split-teal,
+.video-effect-split-gold,
+.video-effect-split-amber,
+.video-effect-split-moss,
+.video-effect-split-haze {
+  mix-blend-mode: screen;
+  opacity: calc(.22 * var(--effect-strength, 1));
+}
+
+.video-effect-split-teal { background: linear-gradient(180deg, rgba(93,198,248,.24), rgba(12,41,72,.28)); }
+.video-effect-split-gold { background: linear-gradient(180deg, rgba(224,176,136,.25), rgba(18,35,61,.25)); }
+.video-effect-split-amber { background: linear-gradient(180deg, rgba(232,221,211,.2), rgba(36,26,22,.3)); }
+.video-effect-split-moss { background: linear-gradient(180deg, rgba(214,216,200,.18), rgba(21,40,22,.28)); }
+.video-effect-split-haze { background: linear-gradient(180deg, rgba(227,230,234,.2), rgba(13,21,23,.18)); }
+
+.video-effect-liquid-glass {
+  backdrop-filter: blur(1px) saturate(1.25);
+  background:
+    repeating-radial-gradient(ellipse at 25% 35%, transparent 0 18px, rgba(170,235,255,.08) 20px 22px, transparent 25px 42px),
+    linear-gradient(135deg, rgba(190,245,255,.12), rgba(70,120,255,.08) 48%, rgba(255,255,255,.18));
+  mix-blend-mode: screen;
+  opacity: calc(.55 * var(--effect-strength, 1));
+  animation: creative-liquid-ripple var(--effect-speed, 8s) ease-in-out infinite;
+}
+
+.video-effect-wet-shine {
+  background: linear-gradient(112deg, transparent 25%, rgba(255,255,255,.05) 39%, rgba(255,255,255,.58) 47%, rgba(185,240,255,.16) 53%, transparent 66%);
+  mix-blend-mode: screen;
+  opacity: calc(.62 * var(--effect-strength, 1));
+  transform: translateX(-120%);
+  animation: creative-shine-sweep var(--effect-speed, 8s) ease-in-out infinite;
+}
+
+.video-effect-mirror-water {
+  background:
+    linear-gradient(180deg, transparent 43%, rgba(90,205,232,.15) 50%, transparent 57%),
+    repeating-linear-gradient(177deg, transparent 0 14px, rgba(125,225,255,.06) 16px 18px, transparent 20px 32px);
+  mix-blend-mode: screen;
+  opacity: calc(.6 * var(--effect-strength, 1));
+  animation: creative-water-drift var(--effect-speed, 8s) ease-in-out infinite;
+}
+
+.video-effect-bloom-bokeh,
+.video-effect-spring-petals {
+  background:
+    radial-gradient(circle at 18% 22%, rgba(255,246,190,.48) 0 2%, transparent 11%),
+    radial-gradient(circle at 74% 27%, rgba(190,235,255,.34) 0 2%, transparent 12%),
+    radial-gradient(circle at 55% 78%, rgba(255,196,210,.3) 0 1.5%, transparent 9%),
+    radial-gradient(circle at 88% 72%, rgba(255,236,174,.35) 0 1.5%, transparent 10%);
+  mix-blend-mode: screen;
+  filter: blur(5px);
+  opacity: calc(.72 * var(--effect-strength, 1));
+  animation: creative-bokeh-float var(--effect-speed, 8s) ease-in-out infinite;
+}
+
+.video-effect-god-rays {
+  background: conic-gradient(from 210deg at 16% 8%, transparent 0deg, rgba(255,220,130,.22) 5deg, transparent 13deg, rgba(255,241,190,.13) 20deg, transparent 30deg, rgba(255,205,100,.17) 38deg, transparent 48deg);
+  mix-blend-mode: screen;
+  opacity: calc(.72 * var(--effect-strength, 1));
+  animation: creative-ray-pulse var(--effect-speed, 8s) ease-in-out infinite;
+}
+
+.video-effect-spring-petals::after {
+  content: "✦  ·  ✿  ·  ✦  ·  ❋";
+  position: absolute;
+  inset: -20% 0 0;
+  color: color-mix(in srgb, rgba(255,224,226,.82) calc(var(--effect-strength, 1) * 100%), transparent);
+  font-size: clamp(14px, 2.2vw, 28px);
+  letter-spacing: 3.5vw;
+  line-height: 7rem;
+  text-shadow: 0 0 12px rgba(255,180,210,.9);
+  transform: rotate(-8deg);
+  animation: creative-petal-drift 9s linear infinite;
+}
+
+.video-effect-chromatic-dream {
+  background: linear-gradient(105deg, rgba(255,70,180,.14), transparent 35%, rgba(70,220,255,.18) 68%, transparent 82%);
+  mix-blend-mode: screen;
+  filter: blur(1px);
+  opacity: calc(.75 * var(--effect-strength, 1));
+  animation: creative-chromatic-shift var(--effect-speed, 8s) ease-in-out infinite;
+}
+
+@keyframes creative-liquid-ripple {
+  0%, 100% { transform: scale(1) translate3d(0, 0, 0); background-position: 0 0, 0 0; }
+  50% { transform: scale(1.025) translate3d(1%, -1%, 0); background-position: 18px -12px, -12px 8px; }
+}
+
+@keyframes creative-shine-sweep {
+  0%, 20% { transform: translateX(-120%); }
+  72%, 100% { transform: translateX(120%); }
+}
+
+@keyframes creative-water-drift {
+  0%, 100% { background-position: 0 0, 0 0; }
+  50% { background-position: 0 8px, 18px -10px; }
+}
+
+@keyframes creative-bokeh-float {
+  0%, 100% { transform: scale(1) translate3d(0, 0, 0); }
+  50% { transform: scale(1.08) translate3d(2%, -2%, 0); }
+}
+
+@keyframes creative-ray-pulse {
+  0%, 100% { opacity: .38; transform: rotate(-2deg) scale(1); }
+  50% { opacity: .72; transform: rotate(3deg) scale(1.06); }
+}
+
+@keyframes creative-petal-drift {
+  0% { transform: translate3d(-4%, -5%, 0) rotate(-8deg); }
+  50% { transform: translate3d(3%, 4%, 0) rotate(3deg); }
+  100% { transform: translate3d(-4%, 12%, 0) rotate(-8deg); }
+}
+
+@keyframes creative-chromatic-shift {
+  0%, 100% { transform: translateX(-1.5%) scale(1); }
+  50% { transform: translateX(1.5%) scale(1.03); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .video-effect-overlay,
+  .video-effect-overlay::after {
+    animation: none !important;
+  }
+}
+
+
+.video-effect-crystal-refraction {
+  backdrop-filter: blur(1.5px) saturate(1.35);
+  background: conic-gradient(from 120deg at 65% 35%, rgba(190,245,255,.2), rgba(196,160,255,.12), rgba(255,255,255,.2), rgba(90,220,255,.12), rgba(190,245,255,.2));
+  mix-blend-mode: screen;
+  opacity: calc(.62 * var(--effect-strength, 1));
+  animation: creative-prism-shift var(--effect-speed, 8s) ease-in-out infinite;
+}
+
+.video-effect-aqua-prism {
+  background: linear-gradient(115deg, rgba(50,230,220,.12), rgba(90,180,255,.3) 46%, rgba(220,255,240,.08) 58%, transparent 76%);
+  mix-blend-mode: screen;
+  opacity: calc(.68 * var(--effect-strength, 1));
+  animation: creative-aqua-sweep var(--effect-speed, 8s) ease-in-out infinite;
+}
+
+.video-effect-glass-shimmer {
+  background: linear-gradient(112deg, transparent 20%, rgba(255,255,255,.05) 38%, rgba(255,255,255,.72) 48%, rgba(210,250,255,.2) 54%, transparent 68%);
+  mix-blend-mode: screen;
+  opacity: calc(.78 * var(--effect-strength, 1));
+  transform: translateX(-125%);
+  animation: creative-shine-sweep var(--effect-speed, 8s) ease-in-out infinite;
+}
+
+.video-effect-caustic-water {
+  background: repeating-radial-gradient(ellipse at 35% 45%, transparent 0 14px, rgba(120,235,255,.12) 16px 20px, transparent 24px 42px), linear-gradient(180deg, rgba(100,220,255,.08), rgba(20,100,180,.14));
+  mix-blend-mode: screen;
+  filter: blur(2px);
+  opacity: calc(.72 * var(--effect-strength, 1));
+  animation: creative-caustic-drift var(--effect-speed, 8s) ease-in-out infinite;
+}
+
+@keyframes creative-prism-shift {
+  0%, 100% { transform: translate3d(-2%, 0, 0) rotate(-1deg); }
+  50% { transform: translate3d(3%, -2%, 0) rotate(2deg); }
+}
+
+@keyframes creative-aqua-sweep {
+  0%, 100% { background-position: -20% 0; }
+  50% { background-position: 120% 0; }
+}
+
+@keyframes creative-caustic-drift {
+  0%, 100% { background-position: 0 0, 0 0; }
+  50% { background-position: 28px -18px, 0 10px; }
+}
+
+
+.video-effect-crystal-refraction {
+  backdrop-filter: blur(1.5px) saturate(1.35);
+  background: conic-gradient(from 120deg at 65% 35%, rgba(190,245,255,.2), rgba(196,160,255,.12), rgba(255,255,255,.2), rgba(90,220,255,.12), rgba(190,245,255,.2));
+  mix-blend-mode: screen;
+  opacity: calc(.62 * var(--effect-strength, 1));
+  animation: creative-prism-shift var(--effect-speed, 8s) ease-in-out infinite;
+}
+
+.video-effect-aqua-prism {
+  background: linear-gradient(115deg, rgba(50,230,220,.12), rgba(90,180,255,.3) 46%, rgba(220,255,240,.08) 58%, transparent 76%);
+  mix-blend-mode: screen;
+  opacity: calc(.68 * var(--effect-strength, 1));
+  animation: creative-aqua-sweep var(--effect-speed, 8s) ease-in-out infinite;
+}
+
+.video-effect-glass-shimmer {
+  background: linear-gradient(112deg, transparent 20%, rgba(255,255,255,.05) 38%, rgba(255,255,255,.72) 48%, rgba(210,250,255,.2) 54%, transparent 68%);
+  mix-blend-mode: screen;
+  opacity: calc(.78 * var(--effect-strength, 1));
+  transform: translateX(-125%);
+  animation: creative-shine-sweep var(--effect-speed, 8s) ease-in-out infinite;
+}
+
+.video-effect-caustic-water {
+  background: repeating-radial-gradient(ellipse at 35% 45%, transparent 0 14px, rgba(120,235,255,.12) 16px 20px, transparent 24px 42px), linear-gradient(180deg, rgba(100,220,255,.08), rgba(20,100,180,.14));
+  mix-blend-mode: screen;
+  filter: blur(2px);
+  opacity: calc(.72 * var(--effect-strength, 1));
+  animation: creative-caustic-drift var(--effect-speed, 8s) ease-in-out infinite;
+}
+
+@keyframes creative-prism-shift {
+  0%, 100% { transform: translate3d(-2%, 0, 0) rotate(-1deg); }
+  50% { transform: translate3d(3%, -2%, 0) rotate(2deg); }
+}
+
+@keyframes creative-aqua-sweep {
+  0%, 100% { background-position: -20% 0; }
+  50% { background-position: 120% 0; }
+}
+
+@keyframes creative-caustic-drift {
+  0%, 100% { background-position: 0 0, 0 0; }
+  50% { background-position: 28px -18px, 0 10px; }
+}
+
+.video-effect-water-ripple {
+  background:
+    radial-gradient(circle at 50% 54%, transparent 0 10%, rgba(120,230,255,.34) 10.5% 11%, transparent 11.5% 20%, rgba(185,247,255,.25) 20.5% 21%, transparent 21.5% 31%, rgba(84,201,255,.2) 31.5% 32%, transparent 32.5%),
+    linear-gradient(135deg, transparent 28%, rgba(216,251,255,.18) 45%, transparent 62%);
+  mix-blend-mode: screen;
+  opacity: calc(.9 * var(--effect-strength, 1));
+  animation: creative-water-ripple var(--effect-speed, 8s) ease-in-out infinite;
+}
+
+@keyframes creative-water-ripple {
+  0%, 100% { transform: scale(.92); opacity: calc(.55 * var(--effect-strength, 1)); }
+  50% { transform: scale(1.08); opacity: var(--effect-strength, 1); }
+}
+
+.video-effect-aurora-flux {
+  background:
+    linear-gradient(115deg, transparent 8%, rgba(73, 235, 255, .3) 26%, rgba(154, 95, 255, .26) 43%, transparent 58%),
+    linear-gradient(70deg, transparent 36%, rgba(87, 255, 207, .24) 50%, rgba(221, 102, 255, .2) 64%, transparent 82%);
+  background-size: 145% 145%, 160% 160%;
+  mix-blend-mode: screen;
+  filter: blur(8px) saturate(1.3);
+  opacity: calc(.82 * var(--effect-strength, 1));
+  animation: creative-aurora-flux var(--effect-speed, 8s) ease-in-out infinite alternate;
+}
+
+@keyframes creative-aurora-flux {
+  0% { background-position: -18% 25%, 115% 70%; transform: skewX(-3deg) scale(1.04); }
+  50% { background-position: 48% 5%, 52% 95%; transform: skewX(4deg) scale(1.09); }
+  100% { background-position: 118% 58%, -15% 18%; transform: skewX(-2deg) scale(1.04); }
+}
