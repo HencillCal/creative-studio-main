@@ -8,6 +8,7 @@ import type { Request, Response } from "express";
 import { translate as gTranslate } from "@vitalets/google-translate-api";
 import { ADMIN_PASSWORD } from "../config/admin-config.js";
 import { sendOpsAlert } from "../lib/ops-alert.js";
+import { buildAuroraFluxOverlayFilter } from "../lib/video-overlay.js";
 
 const router: IRouter = Router();
 
@@ -1600,10 +1601,6 @@ function parseCssFilter(cssFilter: string, intensityPct: number): string {
     filters.unshift(`eq=${eqStr}`);
   }
 
-  if (filters.length > 0) {
-    filters.push("format=yuv420p");
-  }
-
   return filters.length > 0 ? filters.join(",") : "";
 }
 
@@ -1624,31 +1621,31 @@ function parseVideoOverlay(effect: string, intensityPct: number, speedPct: numbe
 
   switch (effect as VideoOverlayEffect) {
     case "liquid-glass":
-      return `split=2[base][soft];[soft]gblur=sigma=${b},eq=saturation=1.35:brightness=0.04[glow];[base][glow]blend=all_mode=screen:all_opacity=${s},format=yuv420p`;
+      return `split=2[base][soft];[soft]gblur=sigma=${b},eq=saturation=1.35:brightness=0.04[glow];[base][glow]blend=all_mode=screen:all_opacity=${s}`;
     case "wet-shine":
-      return `drawbox=x='iw*0.2':y=0:w='iw*0.12':h=ih:color=white@${s}:t=fill,format=yuv420p`;
+      return `drawbox=x='iw*0.2':y=0:w='iw*0.12':h=ih:color=white@${s}:t=fill`;
     case "mirror-water":
-      return `split=2[top][reflection];[reflection]vflip,scale=iw:ih*0.5,crop=iw:ih*0.5:0:ih*0.5,gblur=sigma=${b}[reflectionBlur];[top][reflectionBlur]overlay=0:H*0.5,format=yuv420p`;
+      return `split=2[top][reflection];[reflection]vflip,scale=iw:ih*0.5,crop=iw:ih*0.5:0:ih*0.5,gblur=sigma=${b}[reflectionBlur];[top][reflectionBlur]overlay=0:H*0.5`;
     case "water-ripple":
-      return `split=2[base][ripple];[ripple]scale=iw:ih,gblur=sigma=${Math.max(1, blur / 2).toFixed(2)},hue=h='sin(t*${(2 / p).toFixed(3)})*8':s=1.15[rippleSoft];[base][rippleSoft]blend=all_mode=screen:all_opacity=${(strength * 0.9).toFixed(3)},format=yuv420p`;
+      return `split=2[base][ripple];[ripple]scale=iw:ih,gblur=sigma=${Math.max(1, blur / 2).toFixed(2)},hue=h='sin(t*${(2 / p).toFixed(3)})*8':s=1.15[rippleSoft];[base][rippleSoft]blend=all_mode=screen:all_opacity=${(strength * 0.9).toFixed(3)}`;
     case "bloom-bokeh":
-      return `split=2[base][bloom];[bloom]gblur=sigma=${(blur * 2).toFixed(2)},eq=brightness=0.08:saturation=1.2[bloomSoft];[base][bloomSoft]blend=all_mode=screen:all_opacity=${s},format=yuv420p`;
+      return `split=2[base][bloom];[bloom]gblur=sigma=${(blur * 2).toFixed(2)},eq=brightness=0.08:saturation=1.2[bloomSoft];[base][bloomSoft]blend=all_mode=screen:all_opacity=${s}`;
     case "god-rays":
-      return `drawbox=x='iw*0.16':y=0:w='iw*0.06':h=ih:color=0xffd98a@${s}:t=fill,drawbox=x='iw*0.44':y=0:w='iw*0.035':h=ih:color=0xfff1bd@${(strength * 0.7).toFixed(3)}:t=fill,boxblur=${Math.max(1, Math.round(blur))},format=yuv420p`;
+      return `drawbox=x='iw*0.16':y=0:w='iw*0.06':h=ih:color=0xffd98a@${s}:t=fill,drawbox=x='iw*0.44':y=0:w='iw*0.035':h=ih:color=0xfff1bd@${(strength * 0.7).toFixed(3)}:t=fill,boxblur=${Math.max(1, Math.round(blur))}`;
     case "spring-petals":
-      return `drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='*':fontcolor=0xffd9eaff@${(strength * 2).toFixed(3)}:fontsize=24:x='(sin(t*${(18 / period).toFixed(3)})+1)*w*0.5':y='(cos(t*${(11 / period).toFixed(3)})+1)*h*0.5',drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='o':fontcolor=0xfff2c5d8@${(strength * 2.2).toFixed(3)}:fontsize=28:x='(cos(t*${(9 / period).toFixed(3)})+1)*w*0.5':y='(sin(t*${(15 / period).toFixed(3)})+1)*h*0.5',format=yuv420p`;
+      return `drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='*':fontcolor=0xffd9eaff@${(strength * 2).toFixed(3)}:fontsize=24:x='(sin(t*${(18 / period).toFixed(3)})+1)*w*0.5':y='(cos(t*${(11 / period).toFixed(3)})+1)*h*0.5',drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='o':fontcolor=0xfff2c5d8@${(strength * 2.2).toFixed(3)}:fontsize=28:x='(cos(t*${(9 / period).toFixed(3)})+1)*w*0.5':y='(sin(t*${(15 / period).toFixed(3)})+1)*h*0.5'`;
     case "chromatic-dream":
-      return `rgbashift=rh=${Math.max(1, Math.round(strength * 10))}:bh=-${Math.max(1, Math.round(strength * 8))},split=2[base][soft];[soft]gblur=sigma=${b}[glow];[base][glow]blend=all_mode=screen:all_opacity=${s},format=yuv420p`;
+      return `rgbashift=rh=${Math.max(1, Math.round(strength * 10))}:bh=-${Math.max(1, Math.round(strength * 8))},split=2[base][soft];[soft]gblur=sigma=${b}[glow];[base][glow]blend=all_mode=screen:all_opacity=${s}`;
     case "crystal-refraction":
-      return `split=2[base][prism];[prism]gblur=sigma=${b},hue=h='${(speedPct / 10).toFixed(2)}*t':s=1.35[prismSoft];[base][prismSoft]blend=all_mode=screen:all_opacity=${s},format=yuv420p`;
+      return `split=2[base][prism];[prism]gblur=sigma=${b},hue=h='${(speedPct / 10).toFixed(2)}*t':s=1.35[prismSoft];[base][prismSoft]blend=all_mode=screen:all_opacity=${s}`;
     case "aqua-prism":
-      return `drawbox=x='iw*0.375':y=0:w='iw*0.18':h=ih:color=0x76e7ff@${s}:t=fill,eq=saturation=1.25:contrast=1.08,format=yuv420p`;
+      return `drawbox=x='iw*0.375':y=0:w='iw*0.18':h=ih:color=0x76e7ff@${s}:t=fill,eq=saturation=1.25:contrast=1.08`;
     case "glass-shimmer":
-      return `drawbox=x='iw*0.425':y=0:w='iw*0.09':h=ih:color=white@${(strength * 1.8).toFixed(3)}:t=fill,gblur=sigma=${Math.max(1, blur / 2).toFixed(2)},format=yuv420p`;
+      return `drawbox=x='iw*0.425':y=0:w='iw*0.09':h=ih:color=white@${(strength * 1.8).toFixed(3)}:t=fill,gblur=sigma=${Math.max(1, blur / 2).toFixed(2)}`;
     case "caustic-water":
-      return `split=2[base][caustic];[caustic]gblur=sigma=${Math.max(1, blur / 1.5).toFixed(2)},eq=brightness=0.06:saturation=1.4[causticSoft];[base][causticSoft]blend=all_mode=screen:all_opacity=${(strength * 1.15).toFixed(3)},format=yuv420p`;
+      return `split=2[base][caustic];[caustic]gblur=sigma=${Math.max(1, blur / 1.5).toFixed(2)},eq=brightness=0.06:saturation=1.4[causticSoft];[base][causticSoft]blend=all_mode=screen:all_opacity=${(strength * 1.15).toFixed(3)}`;
     case "aurora-flux":
-      return `split=2[base][aurora];[aurora]gblur=sigma=${Math.max(1, blur / 1.6).toFixed(2)},hue=h='sin(t*${(2.4 / p).toFixed(3)})*18':s=1.5[auroraSoft];[base][auroraSoft]blend=all_mode=screen:all_opacity=${(strength * 1.2).toFixed(3)},format=yuv420p`;
+      return buildAuroraFluxOverlayFilter(intensityPct, speedPct);
   }
 }
 
@@ -1727,7 +1724,7 @@ router.post("/stylize-video", videoMergeUpload.single("video"), async (req: Requ
   let ffmpegFilter = hasFilter ? parseCssFilter(cssFilter, intensity) : "";
   if (overlayFilter) {
     ffmpegFilter = ffmpegFilter
-      ? `${ffmpegFilter.replace(/,format=yuv420p$/, "")},${overlayFilter}`
+      ? `${ffmpegFilter},${overlayFilter}`
       : overlayFilter;
   }
   if (hasFilter && !ffmpegFilter) {
@@ -1737,20 +1734,21 @@ router.post("/stylize-video", videoMergeUpload.single("video"), async (req: Requ
   }
 
   if (cropFilter) {
-    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter.replace(/,format=yuv420p$/, "")},${cropFilter},format=yuv420p` : `${cropFilter},format=yuv420p`;
+    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter},${cropFilter}` : cropFilter;
   }
   if (resizeFilter) {
-    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter.replace(/,format=yuv420p$/, "")},${resizeFilter},format=yuv420p` : `${resizeFilter},format=yuv420p`;
+    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter},${resizeFilter}` : resizeFilter;
   }
   if (qualityTier !== "original" && !(outputWidth && outputHeight && framing !== "original")) {
     const capLongEdge = qualityTier === "social" ? 1920 : 2560;
-    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter.replace(/,format=yuv420p$/, "")},scale='min(${capLongEdge},iw)':'min(${capLongEdge},iw)/a':force_original_aspect_ratio=decrease:flags=lanczos,format=yuv420p` : `scale='min(${capLongEdge},iw)':'min(${capLongEdge},iw)/a':force_original_aspect_ratio=decrease:flags=lanczos,format=yuv420p`;
+    const qualityScaleFilter = `scale='min(${capLongEdge},iw)':'min(${capLongEdge},iw)/a':force_original_aspect_ratio=decrease:flags=lanczos`;
+    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter},${qualityScaleFilter}` : qualityScaleFilter;
   }
   if (mirror) {
-    ffmpegFilter = ffmpegFilter ? `hflip,${ffmpegFilter}` : "hflip,format=yuv420p";
+    ffmpegFilter = ffmpegFilter ? `hflip,${ffmpegFilter}` : "hflip";
   }
   if (enhancementFilter) {
-    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter.replace(/,format=yuv420p$/, "")},${enhancementFilter},format=yuv420p` : `${enhancementFilter},format=yuv420p`;
+    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter},${enhancementFilter}` : enhancementFilter;
   }
 
   // H.264 with yuv420p requires even dimensions. Normalize odd source/crop sizes

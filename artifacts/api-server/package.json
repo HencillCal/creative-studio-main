@@ -17,6 +17,7 @@
     "@types/multer": "^2.1.0",
     "@vitalets/google-translate-api": "^9.2.1",
     "@workspace/api-zod": "workspace:*",
+    "@workspace/video-effects": "workspace:*",
     "@workspace/db": "workspace:*",
     "cookie-parser": "^1.4.7",
     "cors": "^2",

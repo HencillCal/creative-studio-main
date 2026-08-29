@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
+import { AURORA_FLUX_CSS_VARIABLES, auroraFluxDurationSeconds } from "@workspace/video-effects";
 
 type StyleMode = "css" | "pixel";
 type VideoFramingMode = "original" | "fit" | "fill";
@@ -1549,7 +1550,8 @@ export default function AiStylizer() {
                             zIndex: compareFlipped ? 0 : 1,
                             clipPath: compareFlipped ? undefined : `inset(0 0 0 ${sliderPos}%)`,
                             ["--effect-strength" as string]: String(overlayIntensity / 100),
-                            ["--effect-speed" as string]: `${(12 - overlaySpeed * 0.08).toFixed(2)}s`,
+                            ["--effect-speed" as string]: `${auroraFluxDurationSeconds(overlaySpeed).toFixed(2)}s`,
+                            ...AURORA_FLUX_CSS_VARIABLES,
                           } as React.CSSProperties}
                         />
                       )}
