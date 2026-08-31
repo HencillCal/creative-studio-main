@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { sendOpsAlert } from "./lib/ops-alert";
 import { checkYtDlpFreshness } from "./lib/yt-dlp-version-check";
 import { startYtDlpAutoUpgrade } from "./lib/yt-dlp-auto-upgrade";
+import { startVideoExportWorker } from "./lib/video-export-queue.js";
 
 const rawPort = process.env["PORT"] ?? "3000";
 const port = Number(rawPort);
@@ -20,6 +21,7 @@ app.listen(port, (err) => {
   logger.info({ port }, "Server listening");
   void checkYtDlpFreshness();
   startYtDlpAutoUpgrade();
+  startVideoExportWorker();
 
   if (process.env["OPS_ALERT_TEST"] === "1") {
     void sendOpsAlert("ops-alert channel is live (startup self-test)", {

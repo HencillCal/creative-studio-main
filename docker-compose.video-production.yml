@@ -1,0 +1,37 @@
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    restart: unless-stopped
+    volumes:
+      - video-redis-data:/data
+    networks:
+      - video-private
+
+  app:
+    image: ${VIDEO_APP_IMAGE:-creative-studio:latest}
+    restart: unless-stopped
+    depends_on:
+      - redis
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      REDIS_URL: redis://redis:6379
+      VIDEO_EXPORT_QUEUE: "1"
+      VIDEO_QUEUE_THRESHOLD_SECONDS: "180"
+      VIDEO_CHUNK_SECONDS: "60"
+      VIDEO_EXPORT_CONCURRENCY: "2"
+      VIDEO_EXPORT_TIMEOUT_SECONDS: "1800"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./data:/app/artifacts/api-server/tmp_outputs
+    networks:
+      - video-private
+
+networks:
+  video-private:
+    driver: bridge
+
+volumes:
+  video-redis-data:

@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
+import { AURORA_FLUX_CSS_VARIABLES, auroraFluxDurationSeconds } from "@workspace/video-effects";
 
 type StyleMode = "css" | "pixel";
 type VideoFramingMode = "original" | "fit" | "fill";
@@ -793,7 +794,12 @@ export default function AiStylizer() {
         const data = await res.json().catch(() => ({ message: "Server error" }));
         throw new Error(data.message || "Video stylization failed");
       }
-      const { fileId } = await res.json();
+      const data = await res.json();
+      const fileId = typeof data.fileId === "string"
+        ? data.fileId
+        : data.queued && typeof data.jobId === "string"
+          ? await waitForQueuedVideoExport(data.jobId)
+          : (() => { throw new Error("Video export did not return a file"); })();
       const downloadName = makeVideoDownloadName(videoFile.name, selectedStyle.label, downloadNameTemplate, videoQuality, videoCodec);
       const a = document.createElement("a");
       a.href = `/api/media/download/${fileId}?filename=${encodeURIComponent(downloadName)}`;
@@ -839,10 +845,15 @@ export default function AiStylizer() {
           if (mirrorFlipped) fd.append("mirror", "1");
           const res = await fetch("/api/media/stylize-video", { method: "POST", body: fd });
           const data = await res.json().catch(() => ({}));
-          if (!res.ok || typeof data.fileId !== "string") throw new Error(data.message || "Export failed");
+          if (!res.ok) throw new Error(data.message || "Export failed");
+          const fileId = typeof data.fileId === "string"
+            ? data.fileId
+            : data.queued && typeof data.jobId === "string"
+              ? await waitForQueuedVideoExport(data.jobId)
+              : (() => { throw new Error("Video export did not return a file"); })();
           const downloadName = makeVideoDownloadName(file.name, selectedStyle.label, downloadNameTemplate, videoQuality, videoCodec);
           const a = document.createElement("a");
-          a.href = `/api/media/download/${data.fileId}?filename=${encodeURIComponent(downloadName)}`;
+          a.href = `/api/media/download/${fileId}?filename=${encodeURIComponent(downloadName)}`;
           a.download = downloadName;
           a.click();
         } catch (err) {
@@ -1549,7 +1560,8 @@ export default function AiStylizer() {
                             zIndex: compareFlipped ? 0 : 1,
                             clipPath: compareFlipped ? undefined : `inset(0 0 0 ${sliderPos}%)`,
                             ["--effect-strength" as string]: String(overlayIntensity / 100),
-                            ["--effect-speed" as string]: `${(12 - overlaySpeed * 0.08).toFixed(2)}s`,
+                            ["--effect-speed" as string]: `${auroraFluxDurationSeconds(overlaySpeed).toFixed(2)}s`,
+                            ...AURORA_FLUX_CSS_VARIABLES,
                           } as React.CSSProperties}
                         />
                       )}
@@ -1987,6 +1999,19 @@ async function clearPersistedMedia(): Promise<void> {
     });
     db.close();
   } catch {}
+}
+
+async function waitForQueuedVideoExport(jobId: string): Promise<string> {
+  const deadline = Date.now() + 12 * 60 * 60 * 1000;
+  while (Date.now() < deadline) {
+    const response = await fetch(`/api/media/stylize-video/jobs/${encodeURIComponent(jobId)}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || "Could not read queued export status");
+    if (data.state === "completed" && data.result?.fileId) return data.result.fileId;
+    if (data.state === "failed" || data.state === "stopped") throw new Error(data.failedReason || "Queued video export failed");
+    await new Promise(resolve => setTimeout(resolve, 1500));
+  }
+  throw new Error("Queued video export exceeded the 12-hour timeout");
 }
 
 function makeVideoDownloadName(fileName: string, styleLabel: string, template: string, quality: VideoQualityTier, codec: VideoCodec): string {

@@ -8,6 +8,14 @@ import type { Request, Response } from "express";
 import { translate as gTranslate } from "@vitalets/google-translate-api";
 import { ADMIN_PASSWORD } from "../config/admin-config.js";
 import { sendOpsAlert } from "../lib/ops-alert.js";
+import { buildAuroraFluxOverlayFilter } from "../lib/video-overlay.js";
+import {
+  enqueueVideoExport,
+  getVideoExportChunkSeconds,
+  getVideoExportStatus,
+  isVideoExportQueueEnabled,
+  shouldQueueVideoExport,
+} from "../lib/video-export-queue.js";
 
 const router: IRouter = Router();
 
@@ -1600,10 +1608,6 @@ function parseCssFilter(cssFilter: string, intensityPct: number): string {
     filters.unshift(`eq=${eqStr}`);
   }
 
-  if (filters.length > 0) {
-    filters.push("format=yuv420p");
-  }
-
   return filters.length > 0 ? filters.join(",") : "";
 }
 
@@ -1624,31 +1628,31 @@ function parseVideoOverlay(effect: string, intensityPct: number, speedPct: numbe
 
   switch (effect as VideoOverlayEffect) {
     case "liquid-glass":
-      return `split=2[base][soft];[soft]gblur=sigma=${b},eq=saturation=1.35:brightness=0.04[glow];[base][glow]blend=all_mode=screen:all_opacity=${s},format=yuv420p`;
+      return `split=2[base][soft];[soft]gblur=sigma=${b},eq=saturation=1.35:brightness=0.04[glow];[base][glow]blend=all_mode=screen:all_opacity=${s}`;
     case "wet-shine":
-      return `eq=brightness=${(strength * 0.16).toFixed(3)}:contrast=1.04:saturation=1.08,format=yuv420p`;
+      return `eq=brightness=${(strength * 0.16).toFixed(3)}:contrast=1.04:saturation=1.08`;
     case "mirror-water":
-      return `split=2[top][reflection];[reflection]vflip,scale=iw:ih*0.5,crop=iw:ih*0.5:0:ih*0.5,gblur=sigma=${b}[reflectionBlur];[top][reflectionBlur]overlay=0:H*0.5,format=yuv420p`;
+      return `split=2[top][reflection];[reflection]vflip,scale=iw:ih*0.5,crop=iw:ih*0.5:0:ih*0.5,gblur=sigma=${b}[reflectionBlur];[top][reflectionBlur]overlay=0:H*0.5`;
     case "water-ripple":
-      return `split=2[base][ripple];[ripple]scale=iw:ih,gblur=sigma=${Math.max(1, blur / 2).toFixed(2)},hue=h='sin(t*${(2 / p).toFixed(3)})*8':s=1.15[rippleSoft];[base][rippleSoft]blend=all_mode=screen:all_opacity=${(strength * 0.9).toFixed(3)},format=yuv420p`;
+      return `split=2[base][ripple];[ripple]scale=iw:ih,gblur=sigma=${Math.max(1, blur / 2).toFixed(2)},hue=h='sin(t*${(2 / p).toFixed(3)})*8':s=1.15[rippleSoft];[base][rippleSoft]blend=all_mode=screen:all_opacity=${(strength * 0.9).toFixed(3)}`;
     case "bloom-bokeh":
-      return `split=2[base][bloom];[bloom]gblur=sigma=${(blur * 2).toFixed(2)},eq=brightness=0.08:saturation=1.2[bloomSoft];[base][bloomSoft]blend=all_mode=screen:all_opacity=${s},format=yuv420p`;
+      return `split=2[base][bloom];[bloom]gblur=sigma=${(blur * 2).toFixed(2)},eq=brightness=0.08:saturation=1.2[bloomSoft];[base][bloomSoft]blend=all_mode=screen:all_opacity=${s}`;
     case "god-rays":
-      return `eq=brightness=${(strength * 0.22).toFixed(3)}:contrast=1.06:saturation=1.12,vignette=PI/5,format=yuv420p`;
+      return `eq=brightness=${(strength * 0.22).toFixed(3)}:contrast=1.06:saturation=1.12,vignette=PI/5`;
     case "spring-petals":
-      return `drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='*':fontcolor=0xffd9eaff@${(strength * 2).toFixed(3)}:fontsize=24:x='(sin(t*${(18 / period).toFixed(3)})+1)*w*0.5':y='(cos(t*${(11 / period).toFixed(3)})+1)*h*0.5',drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='o':fontcolor=0xfff2c5d8@${(strength * 2.2).toFixed(3)}:fontsize=28:x='(cos(t*${(9 / period).toFixed(3)})+1)*w*0.5':y='(sin(t*${(15 / period).toFixed(3)})+1)*h*0.5',format=yuv420p`;
+      return `drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='*':fontcolor=0xffd9eaff@${(strength * 2).toFixed(3)}:fontsize=24:x='(sin(t*${(18 / period).toFixed(3)})+1)*w*0.5':y='(cos(t*${(11 / period).toFixed(3)})+1)*h*0.5',drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='o':fontcolor=0xfff2c5d8@${(strength * 2.2).toFixed(3)}:fontsize=28:x='(cos(t*${(9 / period).toFixed(3)})+1)*w*0.5':y='(sin(t*${(15 / period).toFixed(3)})+1)*h*0.5'`;
     case "chromatic-dream":
-      return `rgbashift=rh=${Math.max(1, Math.round(strength * 10))}:bh=-${Math.max(1, Math.round(strength * 8))},split=2[base][soft];[soft]gblur=sigma=${b}[glow];[base][glow]blend=all_mode=screen:all_opacity=${s},format=yuv420p`;
+      return `rgbashift=rh=${Math.max(1, Math.round(strength * 10))}:bh=-${Math.max(1, Math.round(strength * 8))},split=2[base][soft];[soft]gblur=sigma=${b}[glow];[base][glow]blend=all_mode=screen:all_opacity=${s}`;
     case "crystal-refraction":
-      return `split=2[base][prism];[prism]gblur=sigma=${b},hue=h='${(speedPct / 10).toFixed(2)}*t':s=1.35[prismSoft];[base][prismSoft]blend=all_mode=screen:all_opacity=${s},format=yuv420p`;
+      return `split=2[base][prism];[prism]gblur=sigma=${b},hue=h='${(speedPct / 10).toFixed(2)}*t':s=1.35[prismSoft];[base][prismSoft]blend=all_mode=screen:all_opacity=${s}`;
     case "aqua-prism":
-      return `eq=brightness=${(strength * 0.12).toFixed(3)}:contrast=1.08:saturation=1.25,hue=h='sin(t*${(2 / p).toFixed(3)})*6',format=yuv420p`;
+      return `eq=brightness=${(strength * 0.12).toFixed(3)}:contrast=1.08:saturation=1.25,hue=h='sin(t*${(2 / p).toFixed(3)})*6'`;
     case "glass-shimmer":
-      return `split=2[base][shimmer];[shimmer]gblur=sigma=${Math.max(1, blur / 2).toFixed(2)},eq=brightness=${(strength * 0.28).toFixed(3)}:saturation=1.18[shimmerSoft];[base][shimmerSoft]blend=all_mode=screen:all_opacity=${(strength * 1.25).toFixed(3)},format=yuv420p`;
+      return `split=2[base][shimmer];[shimmer]gblur=sigma=${Math.max(1, blur / 2).toFixed(3)},eq=brightness=${(strength * 0.28).toFixed(3)}:saturation=1.18[shimmerSoft];[base][shimmerSoft]blend=all_mode=screen:all_opacity=${(strength * 1.25).toFixed(3)}`;
     case "caustic-water":
-      return `split=2[base][caustic];[caustic]gblur=sigma=${Math.max(1, blur / 1.5).toFixed(2)},eq=brightness=0.06:saturation=1.4[causticSoft];[base][causticSoft]blend=all_mode=screen:all_opacity=${(strength * 1.15).toFixed(3)},format=yuv420p`;
+      return `split=2[base][caustic];[caustic]gblur=sigma=${Math.max(1, blur / 1.5).toFixed(2)},eq=brightness=0.06:saturation=1.4[causticSoft];[base][causticSoft]blend=all_mode=screen:all_opacity=${(strength * 1.15).toFixed(3)}`;
     case "aurora-flux":
-      return `split=2[base][aurora];[aurora]gblur=sigma=${Math.max(1, blur / 1.6).toFixed(2)},hue=h='sin(t*${(2.4 / p).toFixed(3)})*18':s=1.5[auroraSoft];[base][auroraSoft]blend=all_mode=screen:all_opacity=${(strength * 1.2).toFixed(3)},format=yuv420p`;
+      return buildAuroraFluxOverlayFilter(intensityPct, speedPct);
   }
 }
 
@@ -1727,7 +1731,7 @@ router.post("/stylize-video", videoMergeUpload.single("video"), async (req: Requ
   let ffmpegFilter = hasFilter ? parseCssFilter(cssFilter, intensity) : "";
   if (overlayFilter) {
     ffmpegFilter = ffmpegFilter
-      ? `${ffmpegFilter.replace(/,format=yuv420p$/, "")},${overlayFilter}`
+      ? `${ffmpegFilter},${overlayFilter}`
       : overlayFilter;
   }
   if (hasFilter && !ffmpegFilter) {
@@ -1737,20 +1741,21 @@ router.post("/stylize-video", videoMergeUpload.single("video"), async (req: Requ
   }
 
   if (cropFilter) {
-    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter.replace(/,format=yuv420p$/, "")},${cropFilter},format=yuv420p` : `${cropFilter},format=yuv420p`;
+    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter},${cropFilter}` : cropFilter;
   }
   if (resizeFilter) {
-    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter.replace(/,format=yuv420p$/, "")},${resizeFilter},format=yuv420p` : `${resizeFilter},format=yuv420p`;
+    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter},${resizeFilter}` : resizeFilter;
   }
   if (qualityTier !== "original" && !(outputWidth && outputHeight && framing !== "original")) {
     const capLongEdge = qualityTier === "social" ? 1920 : 2560;
-    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter.replace(/,format=yuv420p$/, "")},scale='min(${capLongEdge},iw)':'min(${capLongEdge},iw)/a':force_original_aspect_ratio=decrease:flags=lanczos,format=yuv420p` : `scale='min(${capLongEdge},iw)':'min(${capLongEdge},iw)/a':force_original_aspect_ratio=decrease:flags=lanczos,format=yuv420p`;
+    const qualityScaleFilter = `scale='min(${capLongEdge},iw)':'min(${capLongEdge},iw)/a':force_original_aspect_ratio=decrease:flags=lanczos`;
+    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter},${qualityScaleFilter}` : qualityScaleFilter;
   }
   if (mirror) {
-    ffmpegFilter = ffmpegFilter ? `hflip,${ffmpegFilter}` : "hflip,format=yuv420p";
+    ffmpegFilter = ffmpegFilter ? `hflip,${ffmpegFilter}` : "hflip";
   }
   if (enhancementFilter) {
-    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter.replace(/,format=yuv420p$/, "")},${enhancementFilter},format=yuv420p` : `${enhancementFilter},format=yuv420p`;
+    ffmpegFilter = ffmpegFilter ? `${ffmpegFilter},${enhancementFilter}` : enhancementFilter;
   }
 
   // H.264 with yuv420p requires even dimensions. Normalize odd source/crop sizes
@@ -1759,9 +1764,11 @@ router.post("/stylize-video", videoMergeUpload.single("video"), async (req: Requ
 
   const outputId = `${uuidv4()}.mp4`;
   const outputPath = path.join(outputDir, outputId);
+  let handedToQueue = false;
 
   try {
     const audioPresent = await hasAudioStream(file.path);
+    const durationSeconds = await ffprobe(file.path);
     const sourceDimensions = await ffprobeVideoDimensions(file.path);
     const sourceWidth = cropWidth ?? sourceDimensions?.width ?? 1920;
     const sourceHeight = cropHeight ?? sourceDimensions?.height ?? 1080;
@@ -1781,8 +1788,7 @@ router.post("/stylize-video", videoMergeUpload.single("video"), async (req: Requ
     // Fast preset is materially quicker for delivery tiers while Original
     // retains medium for the best compression efficiency on 4K masters.
     const encodePreset = qualityTier === "original" ? "medium" : "fast";
-    const args = [
-      "-i", file.path,
+    const encodeArgs = [
       "-vf", ffmpegFilter,
       ...(audioPresent ? ["-c:a", "aac", "-b:a", "192k"] : ["-an"]),
       "-c:v", codec === "hevc" ? "libx265" : "libx264",
@@ -1794,11 +1800,23 @@ router.post("/stylize-video", videoMergeUpload.single("video"), async (req: Requ
       "-threads", "0",
       "-pix_fmt", "yuv420p",
       "-movflags", "+faststart",
-      "-y",
-      outputPath,
     ];
 
-    await runProcess("ffmpeg", args);
+    if (isVideoExportQueueEnabled() && shouldQueueVideoExport(durationSeconds)) {
+      const job = await enqueueVideoExport({
+        inputPath: file.path,
+        outputPath,
+        outputDir,
+        durationSeconds,
+        encodeArgs,
+        chunkSeconds: getVideoExportChunkSeconds(),
+      });
+      handedToQueue = true;
+      res.status(202).json({ queued: true, jobId: job.id });
+      return;
+    }
+
+    await runProcess("ffmpeg", ["-i", file.path, ...encodeArgs, "-y", outputPath]);
 
     scheduleCleanup(outputPath, 30 * 60 * 1000);
     res.json({ fileId: outputId });
@@ -1806,7 +1824,25 @@ router.post("/stylize-video", videoMergeUpload.single("video"), async (req: Requ
     try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch {}
     res.status(500).json({ error: "Video stylization failed", message: err instanceof Error ? err.message : "Unknown error" });
   } finally {
-    scheduleCleanup(file.path, 0);
+    if (!handedToQueue) scheduleCleanup(file.path, 0);
+  }
+});
+
+router.get("/stylize-video/jobs/:jobId", async (req: Request, res: Response) => {
+  if (!isVideoExportQueueEnabled()) {
+    res.status(503).json({ error: "Video export queue is unavailable", message: "Set REDIS_URL to enable long-video processing." });
+    return;
+  }
+  try {
+    const jobId = typeof req.params.jobId === "string" ? req.params.jobId : req.params.jobId[0];
+    const status = await getVideoExportStatus(jobId);
+    if (!status) {
+      res.status(404).json({ error: "Not Found", message: "Video export job not found" });
+      return;
+    }
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: "Could not read video export status", message: err instanceof Error ? err.message : "Unknown error" });
   }
 });
 
