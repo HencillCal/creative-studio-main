@@ -1630,7 +1630,7 @@ function parseVideoOverlay(effect: string, intensityPct: number, speedPct: numbe
     case "liquid-glass":
       return `split=2[base][soft];[soft]gblur=sigma=${b},eq=saturation=1.35:brightness=0.04[glow];[base][glow]blend=all_mode=screen:all_opacity=${s}`;
     case "wet-shine":
-      return `drawbox=x='iw*0.2':y=0:w='iw*0.12':h=ih:color=white@${s}:t=fill`;
+      return `eq=brightness=${(strength * 0.16).toFixed(3)}:contrast=1.04:saturation=1.08`;
     case "mirror-water":
       return `split=2[top][reflection];[reflection]vflip,scale=iw:ih*0.5,crop=iw:ih*0.5:0:ih*0.5,gblur=sigma=${b}[reflectionBlur];[top][reflectionBlur]overlay=0:H*0.5`;
     case "water-ripple":
@@ -1638,7 +1638,7 @@ function parseVideoOverlay(effect: string, intensityPct: number, speedPct: numbe
     case "bloom-bokeh":
       return `split=2[base][bloom];[bloom]gblur=sigma=${(blur * 2).toFixed(2)},eq=brightness=0.08:saturation=1.2[bloomSoft];[base][bloomSoft]blend=all_mode=screen:all_opacity=${s}`;
     case "god-rays":
-      return `drawbox=x='iw*0.16':y=0:w='iw*0.06':h=ih:color=0xffd98a@${s}:t=fill,drawbox=x='iw*0.44':y=0:w='iw*0.035':h=ih:color=0xfff1bd@${(strength * 0.7).toFixed(3)}:t=fill,boxblur=${Math.max(1, Math.round(blur))}`;
+      return `eq=brightness=${(strength * 0.22).toFixed(3)}:contrast=1.06:saturation=1.12,vignette=PI/5`;
     case "spring-petals":
       return `drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='*':fontcolor=0xffd9eaff@${(strength * 2).toFixed(3)}:fontsize=24:x='(sin(t*${(18 / period).toFixed(3)})+1)*w*0.5':y='(cos(t*${(11 / period).toFixed(3)})+1)*h*0.5',drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='o':fontcolor=0xfff2c5d8@${(strength * 2.2).toFixed(3)}:fontsize=28:x='(cos(t*${(9 / period).toFixed(3)})+1)*w*0.5':y='(sin(t*${(15 / period).toFixed(3)})+1)*h*0.5'`;
     case "chromatic-dream":
@@ -1646,9 +1646,9 @@ function parseVideoOverlay(effect: string, intensityPct: number, speedPct: numbe
     case "crystal-refraction":
       return `split=2[base][prism];[prism]gblur=sigma=${b},hue=h='${(speedPct / 10).toFixed(2)}*t':s=1.35[prismSoft];[base][prismSoft]blend=all_mode=screen:all_opacity=${s}`;
     case "aqua-prism":
-      return `drawbox=x='iw*0.375':y=0:w='iw*0.18':h=ih:color=0x76e7ff@${s}:t=fill,eq=saturation=1.25:contrast=1.08`;
+      return `eq=brightness=${(strength * 0.12).toFixed(3)}:contrast=1.08:saturation=1.25,hue=h='sin(t*${(2 / p).toFixed(3)})*6'`;
     case "glass-shimmer":
-      return `drawbox=x='iw*0.425':y=0:w='iw*0.09':h=ih:color=white@${(strength * 1.8).toFixed(3)}:t=fill,gblur=sigma=${Math.max(1, blur / 2).toFixed(2)}`;
+      return `split=2[base][shimmer];[shimmer]gblur=sigma=${Math.max(1, blur / 2).toFixed(3)},eq=brightness=${(strength * 0.28).toFixed(3)}:saturation=1.18[shimmerSoft];[base][shimmerSoft]blend=all_mode=screen:all_opacity=${(strength * 1.25).toFixed(3)}`;
     case "caustic-water":
       return `split=2[base][caustic];[caustic]gblur=sigma=${Math.max(1, blur / 1.5).toFixed(2)},eq=brightness=0.06:saturation=1.4[causticSoft];[base][causticSoft]blend=all_mode=screen:all_opacity=${(strength * 1.15).toFixed(3)}`;
     case "aurora-flux":
